@@ -14,6 +14,13 @@ interface GeneratedWord {
   translation: string;
 }
 
+interface Word {
+  original: string;
+  translation: string;
+  learned: boolean;
+  proficiencyLevel: string;
+}
+
 const TARGET_WORD_COUNT = 50;
 
 export async function POST() {
@@ -39,10 +46,10 @@ export async function POST() {
     }
 
     const existingWords = user.words.filter(
-      (word) => word.proficiencyLevel === user.proficiencyLevel
+      (word: Word) => word.proficiencyLevel === user.proficiencyLevel
     );
 
-    let newWords: GeneratedWord[] = [];
+    let newWords: Word[] = [];
     let retries = 0;
     const maxRetries = 3;
 
@@ -57,10 +64,17 @@ export async function POST() {
           user.nativeLanguage,
           user.proficiencyLevel,
           wordsToGenerate,
-          [...existingWords, ...newWords]
+          existingWords
         );
 
-        newWords = [...newWords, ...generatedWords].slice(0, TARGET_WORD_COUNT);
+        const convertedWords: Word[] = generatedWords.map((word) => ({
+          original: word.original,
+          translation: word.translation,
+          learned: false,
+          proficiencyLevel: user.proficiencyLevel,
+        }));
+
+        newWords = [...newWords, ...convertedWords].slice(0, TARGET_WORD_COUNT);
       } catch (error) {
         console.error("Error generating words:", error);
         retries++;
@@ -83,12 +97,7 @@ export async function POST() {
       where: { id: user.id },
       data: {
         words: {
-          push: wordsToSave.map((word) => ({
-            original: word.original,
-            translation: word.translation,
-            learned: false,
-            proficiencyLevel: user.proficiencyLevel,
-          })),
+          push: wordsToSave,
         },
       },
     });
@@ -111,7 +120,7 @@ async function generateWords(
   nativeLanguage: string,
   proficiencyLevel: string,
   count: number,
-  existingWords: { original: string }[]
+  existingWords: Word[]
 ): Promise<GeneratedWord[]> {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   const existingWordsString = existingWords.map((w) => w.original).join(", ");
