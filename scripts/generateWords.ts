@@ -2,6 +2,7 @@
 
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { Word } from "@/types/word";
 
 const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
@@ -40,10 +41,15 @@ const languages = [
 
 const proficiencyLevels = ["A1", "A2"];
 
+interface GeneratedWord {
+  original: string;
+  translation: string;
+}
+
 async function generateWords(
   language: string,
   proficiencyLevel: string
-): Promise<{ original: string; translation: string }[]> {
+): Promise<GeneratedWord[]> {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
   const prompt = `Generate 1000 ${language} words at ${proficiencyLevel} level with their English translations. 
   Respond only with a JSON array in this format: 
@@ -135,7 +141,7 @@ async function getOrCreateUser(): Promise<string> {
 }
 
 async function saveWords(
-  words: { original: string; translation: string }[],
+  words: GeneratedWord[],
   language: string,
   proficiencyLevel: string,
   userId: string
@@ -154,7 +160,7 @@ async function saveWords(
   // Process each word
   for (const word of words) {
     const wordExists = existingWords.some(
-      (existingWord) =>
+      (existingWord: Word) =>
         existingWord.original === word.original &&
         existingWord.proficiencyLevel === proficiencyLevel
     );
