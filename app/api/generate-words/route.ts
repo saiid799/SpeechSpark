@@ -10,6 +10,13 @@ interface GeneratedWord {
   translation: string;
 }
 
+interface Word {
+  original: string;
+  translation: string;
+  learned: boolean;
+  proficiencyLevel: string;
+}
+
 export async function POST() {
   try {
     const { userId } = auth();
@@ -35,7 +42,7 @@ export async function POST() {
 
     const existingWords = user.words;
     const existingWordsCount = existingWords.filter(
-      (word) => word.proficiencyLevel === user.proficiencyLevel
+      (word: Word) => word.proficiencyLevel === user.proficiencyLevel
     ).length;
 
     if (existingWordsCount >= user.targetWordCount) {
@@ -68,7 +75,7 @@ export async function POST() {
       .filter(
         (newWord) =>
           !existingWords.some(
-            (existingWord) =>
+            (existingWord: Word) =>
               existingWord.original === newWord.original &&
               existingWord.proficiencyLevel === user.proficiencyLevel
           )
@@ -90,7 +97,7 @@ export async function POST() {
     });
 
     const totalWordsCount = updatedUser.words.filter(
-      (word) => word.proficiencyLevel === user.proficiencyLevel
+      (word: Word) => word.proficiencyLevel === user.proficiencyLevel
     ).length;
     const progress = `${totalWordsCount}/${user.targetWordCount}`;
 
