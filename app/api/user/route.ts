@@ -3,6 +3,11 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+interface Word {
+  learned: boolean;
+  proficiencyLevel: string;
+}
+
 const wordsPerLevel = {
   A1: 1000,
   A2: 2000,
@@ -43,13 +48,14 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const learnedWords = user.words.filter((word) => word.learned).length;
+    const learnedWords = user.words.filter((word: Word) => word.learned).length;
 
     const completedLevels = Object.keys(wordsPerLevel).filter(
       (level) =>
         level <= user.proficiencyLevel &&
-        user.words.filter((w) => w.proficiencyLevel === level && w.learned)
-          .length === wordsPerLevel[level as keyof typeof wordsPerLevel]
+        user.words.filter(
+          (w: Word) => w.proficiencyLevel === level && w.learned
+        ).length === wordsPerLevel[level as keyof typeof wordsPerLevel]
     );
 
     return NextResponse.json({
