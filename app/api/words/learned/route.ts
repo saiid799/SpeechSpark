@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+interface Word {
+  original: string;
+  translation: string;
+  learned: boolean;
+  proficiencyLevel: string;
+}
+
 export async function GET() {
   try {
     const { userId } = auth();
@@ -18,7 +25,7 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const learnedWords = user.words.filter((word) => word.learned);
+    const learnedWords = user.words.filter((word: Word) => word.learned);
 
     return NextResponse.json({ words: learnedWords });
   } catch (error) {
