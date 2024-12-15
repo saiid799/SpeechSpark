@@ -1,27 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: 15 23 42;
+  --foreground: 226 232 240;
+  --primary: 16 185 129;
+  --primary-foreground: 255 255 255;
+  --secondary: 99 102 241;
+  --secondary-foreground: 255 255 255;
+  --accent: 245 158 11;
+  --accent-foreground: 255 255 255;
+  --card: 17 24 39;
+  --card-foreground: 226 232 240;
+  --muted: 71 85 105;
+  --muted-foreground: 148 163 184;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-background text-foreground;
+  font-family: 'Inter', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  @apply font-semibold;
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent;
   }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--primary) / 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--primary) / 0.7);
+}
+
+/* Ensure proper layout with fixed sidebar */
+.ml-64 {
+  margin-left: 16rem;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Modern card styles */
+.modern-card {
+  @apply bg-card/80 backdrop-blur-sm border border-foreground/10 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:border-primary/30;
+}
+
+/* Responsive typography */
+@screen sm {
+  html {
+    font-size: 14px;
+  }
+}
+
+@screen md {
+  html {
+    font-size: 16px;
+  }
+}
+
+@screen lg {
+  html {
+    font-size: 18px;
+  }
+}
+
+/* Improved button styles */
+.btn-primary {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-300 rounded-full px-6 py-2 font-medium shadow-md hover:shadow-lg;
+}
+
+.btn-secondary {
+  @apply bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors duration-300 rounded-full px-6 py-2 font-medium shadow-md hover:shadow-lg;
+}
+
+/* Improved form input styles */
+.form-input {
+  @apply bg-background border border-foreground/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-300;
+}
+
+/* Responsive grid layout */
+.responsive-grid {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
