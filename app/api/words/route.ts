@@ -1,7 +1,10 @@
+// File: app/api/words/route.ts
+
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import type { Word } from "@/types/word";
 
 const requestSchema = z.object({
   page: z.number().int().positive().optional().default(1),
@@ -47,7 +50,7 @@ export async function POST(request: Request) {
 
     const currentLevel = level || user.proficiencyLevel;
     const wordsForLevel = user.words.filter(
-      (word) => word.proficiencyLevel === currentLevel
+      (word: Word) => word.proficiencyLevel === currentLevel
     );
 
     const totalWordsForLevel =
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
 
     const words = wordsForLevel.slice(start, end);
 
-    const learnedWords = words.filter((word) => word.learned).length;
+    const learnedWords = words.filter((word: Word) => word.learned).length;
     const progress = `${learnedWords}/${words.length}`;
     const currentBatch = `${Math.min(
       wordsForLevel.length,
