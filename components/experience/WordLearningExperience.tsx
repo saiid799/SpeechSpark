@@ -1,5 +1,3 @@
-// File: components/experience/WordLearningExperience.tsx
-
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useApi } from "@/hooks/useApi";
 import confetti from "canvas-confetti";
+import { toast } from "react-hot-toast";
 import {
   Check,
   X,
@@ -24,13 +23,10 @@ interface WordForm {
 }
 
 interface Question {
-  id: string;
-  wordIndex: number;
   question: string;
   options: string[];
   correctAnswer: string;
-  questionLanguage: "native" | "learning";
-  answerLanguage: "native" | "learning";
+  isTranslationQuestion: boolean;
 }
 
 interface WordLearningExperienceProps {
@@ -40,7 +36,6 @@ interface WordLearningExperienceProps {
   learningLanguage: string;
   nativeLanguage: string;
   onComplete: () => void;
-  isReview?: boolean; // Added this prop
 }
 
 const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
@@ -73,6 +68,10 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
     isLoading,
   } = useApi<WordForm[]>();
 
+  useEffect(() => {
+    fetchWordForms(`/api/words/${wordIndex}/forms`);
+  }, [wordIndex, fetchWordForms]);
+
   const generateOptions = useCallback(
     (forms: WordForm[], correctAnswer: string, useForm: boolean): string[] => {
       const options = [correctAnswer];
@@ -101,35 +100,26 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
   const generateQuestions = useCallback(
     (forms: WordForm[]): Question[] => {
       const questions: Question[] = [];
-      forms.forEach((form, index) => {
-        questions.push({
-          id: `q-${index}-native`,
-          wordIndex,
-          question: `How do you say "${form.translation}" in ${learningLanguage}?`,
-          options: generateOptions(forms, form.form, true),
-          correctAnswer: form.form,
-          questionLanguage: "native",
-          answerLanguage: "learning",
-        });
-
-        questions.push({
-          id: `q-${index}-learning`,
-          wordIndex,
-          question: `What does "${form.form}" mean in ${nativeLanguage}?`,
-          options: generateOptions(forms, form.translation, false),
-          correctAnswer: form.translation,
-          questionLanguage: "learning",
-          answerLanguage: "native",
-        });
+      forms.forEach((form) => {
+        questions.push(
+          {
+            question: `What's the translation of "${form.form}"?`,
+            options: generateOptions(forms, form.translation, false),
+            correctAnswer: form.translation,
+            isTranslationQuestion: true,
+          },
+          {
+            question: `How do you say "${form.translation}" in ${learningLanguage}?`,
+            options: generateOptions(forms, form.form, true),
+            correctAnswer: form.form,
+            isTranslationQuestion: false,
+          }
+        );
       });
       return shuffleArray(questions);
     },
-    [generateOptions, learningLanguage, nativeLanguage, wordIndex]
+    [generateOptions, learningLanguage]
   );
-
-  useEffect(() => {
-    fetchWordForms(`/api/words/${wordIndex}/forms`);
-  }, [wordIndex, fetchWordForms]);
 
   useEffect(() => {
     if (wordFormsData) {
@@ -153,8 +143,6 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
 
   const handleAnswer = useCallback(
     (answer: string) => {
-      if (selectedAnswer !== null) return;
-
       setSelectedAnswer(answer);
       const correct = answer === currentQuestion?.correctAnswer;
       setIsCorrect(correct);
@@ -176,25 +164,22 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
 
         speak("Correct!", learningLanguage);
       } else {
-        setMistakes((prev) => {
-          const newMistakes = new Set(prev);
-          newMistakes.add(currentQuestionIndex);
-          return newMistakes;
-        });
+        setMistakes((prev) => new Set(prev).add(currentQuestionIndex));
         setQuizStats((prev) => ({ ...prev, streak: 0 }));
         speak("Try again", learningLanguage);
       }
 
       // Update attempts
+      const questionId = `q-${currentQuestionIndex}`;
       const currentAttempts = quizStats.attempts.find(
-        (a) => a.questionId === currentQuestion?.id
+        (a) => a.questionId === questionId
       );
       setQuizStats((prev) => ({
         ...prev,
         attempts: [
-          ...prev.attempts.filter((a) => a.questionId !== currentQuestion?.id),
+          ...prev.attempts.filter((a) => a.questionId !== questionId),
           {
-            questionId: currentQuestion?.id || "",
+            questionId,
             attempts: (currentAttempts?.attempts || 0) + 1,
           },
         ],
@@ -206,20 +191,42 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
       learningLanguage,
       quizStats.streak,
       quizStats.attempts,
-      selectedAnswer,
       speak,
     ]
   );
 
-  const handleComplete = useCallback(() => {
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-    });
-    speak("Congratulations! You've completed the exercise!", learningLanguage);
-    setStep(2);
-  }, [learningLanguage, speak]);
+  const handleComplete = useCallback(async () => {
+    try {
+      // Update word status in the database
+      const response = await fetch(`/api/words/${wordIndex}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ learned: true }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update word status");
+      }
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+
+      speak(
+        "Congratulations! You've completed the exercise!",
+        learningLanguage
+      );
+      setStep(2);
+      toast.success("Word marked as learned!");
+    } catch (error) {
+      console.error("Error updating word status:", error);
+      toast.error("Failed to save progress. Please try again.");
+    }
+  }, [wordIndex, learningLanguage, speak]);
 
   const nextQuestion = useCallback(() => {
     setSelectedAnswer(null);
@@ -299,9 +306,9 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
                     onClick={() =>
                       speak(
                         currentQuestion.question,
-                        currentQuestion.questionLanguage === "native"
-                          ? nativeLanguage
-                          : learningLanguage
+                        currentQuestion.isTranslationQuestion
+                          ? learningLanguage
+                          : nativeLanguage
                       )
                     }
                     className="bg-primary/10 hover:bg-primary/20 text-primary text-lg py-3 px-6 rounded-full"
@@ -336,7 +343,7 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
                           e.stopPropagation();
                           speak(
                             option,
-                            currentQuestion.answerLanguage === "native"
+                            currentQuestion.isTranslationQuestion
                               ? nativeLanguage
                               : learningLanguage
                           );
@@ -394,7 +401,8 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
                 learningLanguage={learningLanguage}
                 nativeLanguage={nativeLanguage}
                 stats={quizStats}
-                onContinue={onComplete}
+                onComplete={onComplete}
+                wordIndex={wordIndex}
               />
             )}
 

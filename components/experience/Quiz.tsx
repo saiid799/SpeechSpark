@@ -1,29 +1,27 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+// File: components/experience/Quiz.tsx
+
+import React, { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
-import { Volume2, Check, X, ArrowRight, Trophy, Brain } from "lucide-react";
+import { Volume2, Brain, Trophy, Target, Zap } from "lucide-react";
 import StarEvaluation from "../evaluation/StarEvaluation";
 import ReviewMode from "./ReviewMode";
-import CompletionPage from "./CompletionPage";
-
-export interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  questionLanguage: "native" | "learning";
-  answerLanguage: "native" | "learning";
-}
+import PhrasePractice from "./PhrasePractice";
+import WordIntro from "./WordIntro";
+import QuizOptionCard from "./QuizOptionCard";
+import { Question } from "@/types/word-learning";
+import { initializeReviewState, ReviewState } from "./reviewManager";
 
 interface QuizProps {
   questions: Question[];
   learningLanguage: string;
   nativeLanguage: string;
-  onComplete: (performance: {
+  wordIndex: number;
+  onComplete: (stats: {
     correctAnswers: number;
     totalQuestions: number;
     streak: number;
@@ -31,27 +29,41 @@ interface QuizProps {
   }) => void;
 }
 
+enum QuizPhase {
+  INTRO,
+  QUESTIONS,
+  PHRASE_PRACTICE,
+  REVIEW,
+  EVALUATION,
+  COMPLETION,
+}
+
 const Quiz: React.FC<QuizProps> = ({
   questions,
   learningLanguage,
   nativeLanguage,
+  wordIndex,
   onComplete,
 }) => {
+  // State
+  const [phase, setPhase] = useState<QuizPhase>(QuizPhase.INTRO);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [bestStreak, setBestStreak] = useState(0);
-  const [showEvaluation, setShowEvaluation] = useState(false);
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [showCompletionPage, setShowCompletionPage] = useState(false);
   const [mistakes, setMistakes] = useState<Question[]>([]);
-  const [questionAttempts, setQuestionAttempts] = useState<{ [key: string]: number }>({});
+  const [reviewState, setReviewState] = useState<ReviewState | null>(null);
   const [score, setScore] = useState(0);
+  const [quizStats, setQuizStats] = useState({
+    correctAnswers: 0,
+    totalQuestions: questions.length,
+    streak: 0,
+    attempts: [] as { questionId: string; attempts: number }[],
+  });
 
+  // Hooks
   const { speak, speaking } = useSpeechSynthesis();
 
+  // Memoized values
   const currentQuestion = useMemo(
     () => questions[currentQuestionIndex],
     [questions, currentQuestionIndex]
@@ -62,192 +74,194 @@ const Quiz: React.FC<QuizProps> = ({
     [currentQuestionIndex, questions.length]
   );
 
-  useEffect(() => {
-    if (currentQuestion) {
-      const language =
-        currentQuestion.questionLanguage === "native"
-          ? nativeLanguage
-          : learningLanguage;
-      speak(currentQuestion.question, language);
-    }
-  }, [currentQuestion, nativeLanguage, learningLanguage, speak]);
-
+  // Event handlers
   const handleAnswer = useCallback(
     (answer: string) => {
       if (selectedAnswer !== null) return;
 
       setSelectedAnswer(answer);
-      const correct = answer === currentQuestion.correctAnswer;
+      const correct = answer === currentQuestion?.correctAnswer;
       setIsCorrect(correct);
 
-      setQuestionAttempts(prev => ({
-        ...prev,
-        [currentQuestion.id]: (prev[currentQuestion.id] || 0) + 1
-      }));
-
       if (correct) {
-        setCorrectAnswers(prev => prev + 1);
-        const newStreak = streak + 1;
-        setStreak(newStreak);
-        setBestStreak(Math.max(bestStreak, newStreak));
-        
-        const streakBonus = Math.min(newStreak * 10, 50);
-        const basePoints = 100;
-        const attempts = questionAttempts[currentQuestion.id] || 1;
-        const attemptsMultiplier = 1 / attempts;
-        const questionScore = (basePoints + streakBonus) * attemptsMultiplier;
-        
-        setScore(prev => prev + Math.round(questionScore));
+        setQuizStats((prev) => {
+          const newStreak = prev.streak + 1;
+          const streakBonus = Math.min(newStreak * 10, 50);
+          const basePoints = 100;
+          const attempts =
+            prev.attempts.find(
+              (a) => a.questionId === `q-${currentQuestionIndex}`
+            )?.attempts || 1;
+          const attemptsMultiplier = 1 / attempts;
+          const questionScore = (basePoints + streakBonus) * attemptsMultiplier;
 
-        if (newStreak > 0 && newStreak % 5 === 0) {
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#16B981", "#6366F1", "#F59E0B"],
-          });
-        }
+          setScore((prevScore) => prevScore + Math.round(questionScore));
+
+          if (newStreak > 0 && newStreak % 3 === 2) {
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+              colors: ["#16B981", "#6366F1", "#F59E0B"],
+            });
+          }
+
+          return {
+            ...prev,
+            correctAnswers: prev.correctAnswers + 1,
+            streak: newStreak,
+          };
+        });
 
         speak("Excellent!", learningLanguage);
       } else {
-        setStreak(0);
-        setMistakes(prev => [...prev, currentQuestion]);
+        setMistakes((prev) => [...prev, currentQuestion]);
+        setQuizStats((prev) => ({ ...prev, streak: 0 }));
         speak("Try again", learningLanguage);
       }
+
+      setQuizStats((prev) => {
+        const questionId = `q-${currentQuestionIndex}`;
+        const currentAttempts = prev.attempts.find(
+          (a) => a.questionId === questionId
+        );
+        return {
+          ...prev,
+          attempts: [
+            ...prev.attempts.filter((a) => a.questionId !== questionId),
+            {
+              questionId,
+              attempts: (currentAttempts?.attempts || 0) + 1,
+            },
+          ],
+        };
+      });
     },
-    [currentQuestion, learningLanguage, speak, streak, bestStreak, questionAttempts]
+    [currentQuestion, currentQuestionIndex, learningLanguage, speak]
   );
 
+  const handlePhaseComplete = useCallback(() => {
+    if (phase === QuizPhase.INTRO) {
+      setPhase(QuizPhase.QUESTIONS);
+    } else if (phase === QuizPhase.QUESTIONS) {
+      if (mistakes.length > 0) {
+        setReviewState(initializeReviewState(mistakes));
+        setPhase(QuizPhase.REVIEW);
+      } else {
+        setPhase(QuizPhase.PHRASE_PRACTICE);
+      }
+    } else if (phase === QuizPhase.REVIEW) {
+      setPhase(QuizPhase.PHRASE_PRACTICE);
+    } else if (phase === QuizPhase.PHRASE_PRACTICE) {
+      setPhase(QuizPhase.EVALUATION);
+    } else if (phase === QuizPhase.EVALUATION) {
+      onComplete(quizStats);
+      setPhase(QuizPhase.COMPLETION);
+    }
+  }, [phase, mistakes, quizStats, onComplete]);
+
   const handleNext = useCallback(() => {
+    if (selectedAnswer === null) return;
+
     if (currentQuestionIndex < questions.length - 1) {
       setSelectedAnswer(null);
       setIsCorrect(null);
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else if (mistakes.length > 0 && !isReviewMode) {
-      setIsReviewMode(true);
-      setSelectedAnswer(null);
-      setIsCorrect(null);
-      setCurrentQuestionIndex(0);
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.6 },
-      });
+      setCurrentQuestionIndex((prev) => prev + 1);
     } else {
-      setShowEvaluation(true);
-      const attempts = Object.entries(questionAttempts).map(([questionId, attempts]) => ({
-        questionId,
-        attempts
-      }));
-      
-      confetti({
-        particleCount: Math.min(correctAnswers * 50, 200),
-        spread: 100,
-        origin: { y: 0.6 },
-        colors: ["#16B981", "#6366F1", "#F59E0B"],
-      });
-
-      onComplete({
-        correctAnswers,
-        totalQuestions: questions.length,
-        streak: bestStreak,
-        attempts
-      });
+      handlePhaseComplete();
     }
   }, [
     currentQuestionIndex,
     questions.length,
-    onComplete,
-    correctAnswers,
-    bestStreak,
-    questionAttempts,
-    mistakes.length,
-    isReviewMode
+    selectedAnswer,
+    handlePhaseComplete,
   ]);
 
-  const handleEvaluationComplete = useCallback(() => {
-    setShowCompletionPage(true);
-  }, []);
-
-  const handleCompletionContinue = useCallback(() => {
-    onComplete({
-      correctAnswers,
-      totalQuestions: questions.length,
-      streak: bestStreak,
-      attempts: Object.entries(questionAttempts).map(([questionId, attempts]) => ({
-        questionId,
-        attempts,
-      }))
-    });
-  }, [correctAnswers, questions.length, bestStreak, questionAttempts, onComplete]);
-
-  if (showCompletionPage) {
+  // Phase-specific rendering
+  if (phase === QuizPhase.INTRO) {
     return (
-      <CompletionPage
-        word={currentQuestion.question}
+      <WordIntro
+        original={currentQuestion.question}
         translation={currentQuestion.correctAnswer}
         learningLanguage={learningLanguage}
         nativeLanguage={nativeLanguage}
-        stats={{
-          correctAnswers,
-          totalQuestions: questions.length,
-          streak: bestStreak,
-        }}
-        onContinue={handleCompletionContinue}
+        onContinue={() => setPhase(QuizPhase.QUESTIONS)}
+        isReview={false}
       />
     );
   }
 
-  if (showEvaluation) {
-    return (
-      <StarEvaluation
-        correctAnswers={correctAnswers}
-        totalQuestions={questions.length}
-        streak={bestStreak}
-        attempts={Object.entries(questionAttempts).map(([questionId, attempts]) => ({
-          questionId,
-          attempts,
-        }))}
-        onContinue={handleEvaluationComplete}
-      />
-    );
-  }
-
-  if (isReviewMode) {
+  if (phase === QuizPhase.REVIEW && reviewState) {
     return (
       <ReviewMode
         mistakes={mistakes}
         learningLanguage={learningLanguage}
         nativeLanguage={nativeLanguage}
-        onComplete={() => setShowEvaluation(true)}
+        onComplete={handlePhaseComplete}
       />
     );
   }
 
+  if (phase === QuizPhase.PHRASE_PRACTICE) {
+    return (
+      <PhrasePractice
+        word={currentQuestion.question}
+        learningLanguage={learningLanguage}
+        nativeLanguage={nativeLanguage}
+        wordIndex={wordIndex}
+        onComplete={handlePhaseComplete}
+      />
+    );
+  }
+
+  if (phase === QuizPhase.EVALUATION) {
+    return (
+      <StarEvaluation
+        correctAnswers={quizStats.correctAnswers}
+        totalQuestions={quizStats.totalQuestions}
+        streak={quizStats.streak}
+        attempts={quizStats.attempts}
+        onContinue={handlePhaseComplete}
+      />
+    );
+  }
+
+  // Main quiz UI
   return (
     <Card className="w-full max-w-4xl mx-auto bg-card/50 backdrop-blur-sm border border-primary/20 rounded-xl shadow-lg">
       <CardContent className="p-8">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              <div>
-                <span className="text-lg font-semibold">{score}</span>
-                <span className="text-sm text-muted-foreground ml-1">points</span>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Brain className="w-5 h-5 text-primary" />
-              <div>
-                <span className="text-lg font-semibold">{streak}</span>
-                <span className="text-sm text-muted-foreground ml-1">streak</span>
-              </div>
-            </div>
-          </div>
+        {/* Stats Section */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <StatsCard
+            icon={Trophy}
+            value={score}
+            label="Points"
+            color="text-yellow-500"
+          />
+          <StatsCard
+            icon={Brain}
+            value={quizStats.streak}
+            label="Streak"
+            color="text-primary"
+          />
+          <StatsCard
+            icon={Target}
+            value={Math.round(
+              (quizStats.correctAnswers / quizStats.totalQuestions) * 100
+            )}
+            label="Accuracy"
+            suffix="%"
+            color="text-secondary"
+          />
+          <StatsCard
+            icon={Zap}
+            value={quizStats.correctAnswers}
+            label="Correct"
+            color="text-accent"
+          />
         </div>
 
-        <Progress value={progress} className="mb-8" />
-
+        {/* Question Section */}
         <motion.div
           key={currentQuestionIndex}
           initial={{ opacity: 0, y: 20 }}
@@ -275,6 +289,7 @@ const Quiz: React.FC<QuizProps> = ({
             </Button>
           </div>
 
+          {/* Options Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <AnimatePresence mode="wait">
               {currentQuestion?.options.map((option, index) => (
@@ -285,57 +300,26 @@ const Quiz: React.FC<QuizProps> = ({
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Button
+                  <QuizOptionCard
+                    option={option}
+                    isSelected={selectedAnswer === option}
+                    isCorrect={selectedAnswer === option ? isCorrect : null}
                     onClick={() => handleAnswer(option)}
+                    onSpeak={() => {
+                      const language =
+                        currentQuestion.answerLanguage === "learning"
+                          ? learningLanguage
+                          : nativeLanguage;
+                      speak(option, language);
+                    }}
                     disabled={selectedAnswer !== null || speaking}
-                    className={`
-                      w-full h-20 text-lg rounded-xl transition-all duration-300
-                      ${
-                        selectedAnswer === option
-                          ? isCorrect
-                            ? "bg-green-500 text-white"
-                            : "bg-red-500 text-white"
-                          : "bg-card hover:bg-primary/10"
-                      }
-                      relative group
-                    `}
-                  >
-                    <span>{option}</span>
-                    {selectedAnswer === option && (
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute right-2"
-                      >
-                        {isCorrect ? (
-                          <Check className="w-6 h-6" />
-                        ) : (
-                          <X className="w-6 h-6" />
-                        )}
-                      </motion.span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const language =
-                          currentQuestion.answerLanguage === "learning"
-                            ? learningLanguage
-                            : nativeLanguage;
-                        speak(option, language);
-                      }}
-                      disabled={speaking}
-                      className="absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Volume2 className="h-4 w-4" />
-                    </Button>
-                  </Button>
+                  />
                 </motion.div>
               ))}
             </AnimatePresence>
           </div>
 
+          {/* Next Button */}
           {selectedAnswer && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -345,29 +329,48 @@ const Quiz: React.FC<QuizProps> = ({
               <Button
                 onClick={handleNext}
                 className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg rounded-full"
+                disabled={speaking}
               >
-                {currentQuestionIndex === questions.length - 1 ? (
-                  mistakes.length > 0 ? "Start Review Mode" : "Complete Quiz"
-                ) : (
-                  <>
-                    Continue <ArrowRight className="ml-2 h-5 w-5" />
-                  </>
-                )}
+                {currentQuestionIndex === questions.length - 1
+                  ? mistakes.length > 0
+                    ? "Start Review Mode"
+                    : "Complete Quiz"
+                  : "Continue"}
               </Button>
             </motion.div>
           )}
         </motion.div>
 
-        <div className="mt-8 flex justify-between text-sm text-muted-foreground">
-          <span>
-            Question {currentQuestionIndex + 1} of {questions.length}
-            {isReviewMode && " (Review Mode)"}
-          </span>
-          <span>Best Streak: {bestStreak}</span>
-        </div>
+        {/* Progress Bar */}
+        <Progress value={progress} className="w-full mt-8" />
       </CardContent>
     </Card>
   );
 };
+
+interface StatsCardProps {
+  icon: React.ElementType;
+  value: number;
+  label: string;
+  color: string;
+  suffix?: string;
+}
+
+const StatsCard: React.FC<StatsCardProps> = ({
+  icon: Icon,
+  value,
+  label,
+  color,
+  suffix = "",
+}) => (
+  <div className="bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-foreground/10">
+    <Icon className={`w-5 h-5 ${color} mb-2`} />
+    <div className="text-2xl font-bold">
+      {value}
+      {suffix}
+    </div>
+    <div className="text-sm text-muted-foreground">{label}</div>
+  </div>
+);
 
 export default Quiz;

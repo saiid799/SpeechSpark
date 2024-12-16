@@ -3,10 +3,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import WordLearningExperience from "@/components/experience/WordLearningExperience";
+import { useRouter } from "next/navigation";
+import EnhancedWordExperience from "@/components/experience/EnhancedWordExperience";
 import { useApi } from "@/hooks/useApi";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 interface Word {
   original: string;
@@ -21,10 +22,8 @@ interface User {
 
 export default function LearnPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [word, setWord] = useState<Word | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const isReview = searchParams.get("review") === "true";
 
   const { request: fetchWord, data: wordData } = useApi<Word>();
   const { request: fetchUser, data: userData } = useApi<User>();
@@ -35,12 +34,8 @@ export default function LearnPage({ params }: { params: { id: string } }) {
   }, [params.id, fetchWord, fetchUser]);
 
   useEffect(() => {
-    if (wordData) {
-      setWord(wordData);
-    }
-    if (userData) {
-      setUser(userData);
-    }
+    if (wordData) setWord(wordData);
+    if (userData) setUser(userData);
   }, [wordData, userData]);
 
   const handleComplete = async () => {
@@ -49,30 +44,27 @@ export default function LearnPage({ params }: { params: { id: string } }) {
 
   if (!word || !user) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-primary/10">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center space-y-4"
+        >
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+          <p className="text-lg text-foreground/80">Loading your lesson...</p>
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <motion.div
-      className="min-h-screen bg-gradient-to-b from-background to-primary/10 flex items-center justify-center p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <div className="w-full max-w-4xl">
-        <WordLearningExperience
-          wordIndex={parseInt(params.id)}
-          original={word.original}
-          translation={word.translation}
-          learningLanguage={user.learningLanguage}
-          nativeLanguage={user.nativeLanguage}
-          onComplete={handleComplete}
-          isReview={isReview}
-        />
-      </div>
-    </motion.div>
+    <EnhancedWordExperience
+      wordIndex={parseInt(params.id)}
+      original={word.original}
+      translation={word.translation}
+      learningLanguage={user.learningLanguage}
+      nativeLanguage={user.nativeLanguage}
+      onComplete={handleComplete}
+    />
   );
 }

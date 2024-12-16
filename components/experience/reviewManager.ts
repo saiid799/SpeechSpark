@@ -1,6 +1,6 @@
 // File: components/experience/reviewManager.ts
 
-import { Question } from "./Quiz";
+import { Question } from "@/types/word-learning";
 
 export interface ReviewItem {
   question: Question;
@@ -72,14 +72,14 @@ export const updateReviewState = (
     correctAnswers: newCorrectAnswers,
   };
 
-  // If the answer was incorrect or it's the first correct answer,
+  // If answer was incorrect or it's the first correct answer,
   // move the item to the end of the list
   if (!isCorrect || newCorrectAnswers === 1) {
     const currentItem = updatedItems.splice(currentIndex, 1)[0];
     updatedItems.push(currentItem);
   }
 
-  // Move to the next item, or back to the start if we've reached the end
+  // Move to next item, or back to start if we've reached the end
   const newIndex = (currentIndex + 1) % updatedItems.length;
 
   return {

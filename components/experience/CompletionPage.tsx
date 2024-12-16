@@ -1,13 +1,12 @@
-// File: components/experience/CompletionPage.tsx
-
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import confetti from "canvas-confetti";
-import { Volume2 } from "lucide-react";
+import { Volume2, CheckCircle } from "lucide-react";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import StarEvaluation from "@/components/evaluation/StarEvaluation";
+import { toast } from "react-hot-toast";
 
 interface CompletionPageProps {
   word: string;
@@ -20,7 +19,8 @@ interface CompletionPageProps {
     streak: number;
     attempts?: { questionId: string; attempts: number }[];
   };
-  onContinue: () => void;
+  wordIndex: number; // Make sure this is included
+  onComplete: () => void;
 }
 
 const CompletionPage: React.FC<CompletionPageProps> = ({
@@ -28,23 +28,56 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
   translation,
   learningLanguage,
   stats,
-  onContinue,
+  onComplete,
+  wordIndex,
 }) => {
   const { speak } = useSpeechSynthesis();
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
-    const triggerCelebration = () => {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#16B981", "#6366F1", "#F59E0B"],
-      });
+    const updateWordStatus = async () => {
+      setIsUpdatingStatus(true);
+      try {
+        const response = await fetch(`/api/words/${wordIndex}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ learned: true }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update word status");
+        }
+
+        // Show success toast after successful update
+        toast.success("Progress saved successfully!");
+
+        // Trigger celebration effects
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#16B981", "#6366F1", "#F59E0B"],
+        });
+
+        speak("Congratulations on completing the word!", learningLanguage);
+      } catch (error) {
+        console.error("Error updating word status:", error);
+        toast.error("Failed to save progress. Please try again.");
+      } finally {
+        setIsUpdatingStatus(false);
+      }
     };
 
-    triggerCelebration();
-    speak("Congratulations on completing the quiz!", learningLanguage);
-  }, [speak, learningLanguage]);
+    updateWordStatus();
+  }, [wordIndex, learningLanguage, speak]);
+
+  const handleContinue = () => {
+    if (!isUpdatingStatus) {
+      onComplete();
+    }
+  };
 
   return (
     <Card className="w-full max-w-4xl mx-auto bg-gradient-to-br from-background/80 to-primary/5 backdrop-blur-sm border border-primary/20 rounded-xl shadow-lg">
@@ -60,7 +93,7 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
             transition={{ type: "spring", duration: 0.8 }}
             className="w-20 h-20 mx-auto bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center mb-6"
           >
-            <div className="w-10 h-10 text-white">🎉</div>
+            <CheckCircle className="w-10 h-10 text-white" />
           </motion.div>
           <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent">
             Excellent Progress!
@@ -75,7 +108,7 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
           totalQuestions={stats.totalQuestions}
           streak={stats.streak}
           attempts={stats.attempts}
-          onContinue={onContinue}
+          onContinue={handleContinue}
         />
 
         <motion.div
@@ -90,12 +123,23 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
             <Button
               onClick={() => speak(word, learningLanguage)}
               className="bg-primary/20 hover:bg-primary/30 text-primary"
+              disabled={isUpdatingStatus}
             >
               <Volume2 className="mr-2 h-4 w-4" />
               Practice Pronunciation
             </Button>
           </div>
         </motion.div>
+
+        <div className="flex justify-center">
+          <Button
+            onClick={handleContinue}
+            className="bg-primary hover:bg-primary/90 text-white px-8 py-3 rounded-full text-lg"
+            disabled={isUpdatingStatus}
+          >
+            Continue Learning
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

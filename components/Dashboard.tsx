@@ -156,6 +156,22 @@ const Dashboard = () => {
     }
   }, [currentPage, fetchWords, fetchUserData]);
 
+    useEffect(() => {
+      fetchUserData();
+
+      // Listen for word learned events
+      const handleWordLearned = () => {
+        fetchUserData();
+        fetchWords(currentPage);
+      };
+
+      window.addEventListener("wordLearned", handleWordLearned);
+
+      return () => {
+        window.removeEventListener("wordLearned", handleWordLearned);
+      };
+    }, [fetchUserData, fetchWords, currentPage]);
+
   const fetchLearnedWords = useCallback(async () => {
     try {
       const response = await fetch("/api/words/learned");

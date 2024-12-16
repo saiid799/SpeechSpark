@@ -20,17 +20,20 @@ export async function POST(
       );
     }
 
-    // First, get the current user and their words
+    // Get the user and their words
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
-      select: { id: true, words: true },
+      select: {
+        id: true,
+        words: true,
+      },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Validate the word index
+    // Validate word index
     if (wordIndex < 0 || wordIndex >= user.words.length) {
       return NextResponse.json(
         { error: "Word index out of range" },
@@ -38,15 +41,9 @@ export async function POST(
       );
     }
 
-    // Create a new array of words with the updated word
+    // Create a new array with the updated word
     const updatedWords = user.words.map((word, index) => {
       if (index === wordIndex) {
-        console.log("Updating word:", {
-          original: word.original,
-          translation: word.translation,
-          learned: true,
-          proficiencyLevel: word.proficiencyLevel,
-        });
         return {
           ...word,
           learned: true,
@@ -55,32 +52,29 @@ export async function POST(
       return word;
     });
 
-    // Update the user document with the new words array
-    const updatedUser = await prisma.user.update({
+    // Update the user's words in the database
+    await prisma.user.update({
       where: { id: user.id },
       data: {
         words: updatedWords,
       },
-      select: {
-        words: true,
-      },
     });
 
-    console.log("Updated word status:", {
-      wordIndex,
-      originalWord: user.words[wordIndex],
-      updatedWord: updatedUser.words[wordIndex],
-    });
+    // Log the update for debugging
+    console.log(
+      `Word at index ${wordIndex} marked as learned for user ${user.id}`
+    );
+    console.log("Updated word:", updatedWords[wordIndex]);
 
     return NextResponse.json({
       success: true,
-      message: "Word marked as learned",
-      updatedWord: updatedUser.words[wordIndex],
+      message: "Word marked as learned successfully",
+      word: updatedWords[wordIndex],
     });
   } catch (error) {
-    console.error("Error in learn route:", error);
+    console.error("Error marking word as learned:", error);
     return NextResponse.json(
-      { error: "Failed to update word status" },
+      { error: "An error occurred while updating word status" },
       { status: 500 }
     );
   }
