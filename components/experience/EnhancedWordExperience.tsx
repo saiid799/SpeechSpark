@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import WordLearningExperience from "./WordLearningExperience";
 import Quiz from "./Quiz";
 import { Card } from "@/components/ui/card";
 import { useApi } from "@/hooks/useApi";
@@ -21,11 +20,6 @@ interface EnhancedWordExperienceProps
   onComplete: () => void;
 }
 
-enum LearningPhase {
-  LEARNING = "learning",
-  QUIZ = "quiz",
-}
-
 const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
   wordIndex,
   original,
@@ -34,7 +28,6 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
   nativeLanguage,
   onComplete,
 }) => {
-  const [phase, setPhase] = useState<LearningPhase>(LearningPhase.LEARNING);
   const [learningStats, setLearningStats] = useState<LearningStats>({
     totalAttempts: 0,
     correctAnswers: 0,
@@ -61,11 +54,6 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
       throw new Error("Failed to update word status");
     }
   }, [wordIndex]);
-
-  const handleLearningComplete = useCallback(async () => {
-    setPhase(LearningPhase.QUIZ);
-    toast.success("Great job! Let's test what you've learned! 🎯");
-  }, []);
 
   const handleQuizComplete = useCallback(
     async (quizStats: {
@@ -177,30 +165,20 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={phase}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {phase === LearningPhase.LEARNING ? (
-              <WordLearningExperience
-                wordIndex={wordIndex}
-                original={original}
-                translation={translation}
-                learningLanguage={learningLanguage}
-                nativeLanguage={nativeLanguage}
-                onComplete={handleLearningComplete}
-              />
-            ) : (
-              <Quiz
-                questions={questions}
-                learningLanguage={learningLanguage}
-                nativeLanguage={nativeLanguage}
-                wordIndex={wordIndex}
-                onComplete={handleQuizComplete}
-              />
-            )}
+            <Quiz
+              questions={questions}
+              learningLanguage={learningLanguage}
+              nativeLanguage={nativeLanguage}
+              wordIndex={wordIndex}
+              onComplete={handleQuizComplete}
+              showWordIntro={true}
+              word={{ original, translation }}
+            />
           </motion.div>
         </AnimatePresence>
       </div>
