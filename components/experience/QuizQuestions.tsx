@@ -4,7 +4,6 @@ import React, { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { useSpeechSynthesis } from "@/hooks/useSpeechSynthesis";
 import {
   Brain,
@@ -13,7 +12,7 @@ import {
   Zap,
   Volume2,
   ChevronRight,
-  Sparkles,
+  Star,
 } from "lucide-react";
 import QuizOptionCard from "./QuizOptionCard";
 import { Question } from "@/types/word-learning";
@@ -95,7 +94,6 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
         const finalPoints = basePoints + streakBonus - attemptPenalty;
         setScore((prevScore) => prevScore + finalPoints);
 
-        // Trigger confetti for streaks
         if (quizStats.streak > 0 && quizStats.streak % 3 === 2) {
           confetti({
             particleCount: 100,
@@ -145,42 +143,47 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
   ]);
 
   return (
-    <div className="relative w-full max-w-4xl mx-auto">
-      {/* Background Glow Effects */}
-      <div className="absolute inset-0 -z-10">
+    <div className="relative w-full max-w-4xl mx-auto px-4">
+      {/* Background Effects */}
+      <div className="absolute inset-0 -z-10 overflow-hidden">
         <motion.div
-          className="absolute top-0 left-0 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl opacity-20"
+          className="absolute -top-1/2 -left-1/2 w-[1000px] h-[1000px] bg-primary/5 rounded-full blur-[120px] opacity-50"
           animate={{
             scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
+            rotate: [0, 45, 0],
           }}
-          transition={{ duration: 20, repeat: Infinity }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         />
         <motion.div
-          className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-secondary/10 rounded-full blur-3xl opacity-20"
+          className="absolute -bottom-1/2 -right-1/2 w-[1000px] h-[1000px] bg-secondary/5 rounded-full blur-[120px] opacity-50"
           animate={{
             scale: [1.2, 1, 1.2],
-            rotate: [0, -90, 0],
+            rotate: [0, -45, 0],
           }}
-          transition={{ duration: 20, repeat: Infinity }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
         />
       </div>
 
-      <Card className="relative overflow-hidden bg-background/60 backdrop-blur-xl border border-primary/10 shadow-xl">
-        <CardContent className="p-8">
-          {/* Stats Section */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      {/* Main Card */}
+      <Card className="relative overflow-hidden bg-background/40 backdrop-blur-xl border border-primary/20 shadow-2xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/40 pointer-events-none" />
+
+        <CardContent className="relative z-10 p-6 sm:p-8">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
             <StatsCard
               icon={Trophy}
               value={score}
               label="Points"
               color="text-yellow-500"
+              bgColor="from-yellow-500/10 to-transparent"
             />
             <StatsCard
               icon={Brain}
               value={quizStats.streak}
               label="Streak"
               color="text-primary"
+              bgColor="from-primary/10 to-transparent"
             />
             <StatsCard
               icon={Target}
@@ -190,12 +193,14 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
               label="Accuracy"
               suffix="%"
               color="text-secondary"
+              bgColor="from-secondary/10 to-transparent"
             />
             <StatsCard
               icon={Zap}
               value={quizStats.correctAnswers}
               label="Correct"
               color="text-accent"
+              bgColor="from-accent/10 to-transparent"
             />
           </div>
 
@@ -204,29 +209,44 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
             key={currentQuestionIndex}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
           >
-            <div className="flex flex-col items-center mb-8">
-              {/* Question Number */}
+            {/* Question Header */}
+            <div className="flex flex-col items-center">
+              {/* Progress Dots */}
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 text-primary/80 mb-4"
+                className="flex items-center gap-3 mb-6"
               >
-                <div className="h-px w-8 bg-primary/30" />
-                <Sparkles className="w-4 h-4" />
-                <span className="text-sm font-medium tracking-wide uppercase">
-                  Question {currentQuestionIndex + 1} of {questions.length}
+                <div className="flex items-center gap-2">
+                  {[...Array(questions.length)].map((_, idx) => (
+                    <motion.div
+                      key={idx}
+                      className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                        idx < currentQuestionIndex
+                          ? "bg-primary"
+                          : idx === currentQuestionIndex
+                          ? "bg-primary ring-2 ring-primary/30"
+                          : "bg-primary/20"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-medium text-foreground/60">
+                  {currentQuestionIndex + 1}/{questions.length}
                 </span>
-                <Sparkles className="w-4 h-4" />
-                <div className="h-px w-8 bg-primary/30" />
               </motion.div>
 
               {/* Question Text */}
-              <h3 className="text-2xl md:text-3xl font-bold mb-4 text-center bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent">
-                {currentQuestion?.question}
-              </h3>
+              <div className="relative">
+                <Star className="absolute -top-6 left-0 w-4 h-4 text-primary/40" />
+                <Star className="absolute -bottom-6 right-0 w-4 h-4 text-secondary/40" />
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center px-8 py-4 bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent">
+                  {currentQuestion?.question}
+                </h3>
+              </div>
 
               {/* Listen Button */}
               <Button
@@ -239,15 +259,16 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
                 }}
                 disabled={speaking}
                 variant="outline"
-                className="bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/30"
+                size="lg"
+                className="mt-6 bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all duration-300"
               >
-                <Volume2 className="mr-2 h-4 w-4 text-primary" />
+                <Volume2 className="mr-2 h-5 w-5 text-primary" />
                 Listen Again
               </Button>
             </div>
 
             {/* Options Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
               <AnimatePresence mode="wait">
                 {currentQuestion?.options.map((option, index) => (
                   <motion.div
@@ -255,7 +276,7 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
                   >
                     <QuizOptionCard
                       option={option}
@@ -285,26 +306,41 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
               >
                 <Button
                   onClick={handleNext}
-                  className="group bg-primary hover:bg-primary/90 text-primary-foreground h-12 px-8 text-lg"
+                  className="group relative overflow-hidden h-14 px-8 text-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300"
                   disabled={speaking}
                 >
-                  {currentQuestionIndex === questions.length - 1 ? (
-                    "Complete Quiz"
-                  ) : (
-                    <>
-                      Continue
-                      <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-                    </>
-                  )}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                    initial={{ x: "-100%" }}
+                    whileHover={{ x: "100%" }}
+                    transition={{ duration: 0.6 }}
+                  />
+                  <span className="relative flex items-center">
+                    {currentQuestionIndex === questions.length - 1 ? (
+                      "Complete Quiz"
+                    ) : (
+                      <>
+                        Continue
+                        <ChevronRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                      </>
+                    )}
+                  </span>
                 </Button>
               </motion.div>
             )}
           </motion.div>
 
           {/* Progress Bar */}
-          <div className="mt-8 space-y-2">
-            <Progress value={progress} className="h-2" />
-            <div className="flex justify-between text-sm text-muted-foreground">
+          <div className="mt-12 space-y-2">
+            <div className="h-2 w-full bg-primary/10 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-primary to-secondary"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+            <div className="flex justify-between text-sm text-foreground/60">
               <span>{Math.round(progress)}% Complete</span>
               <span>
                 {questions.length - currentQuestionIndex - 1} Questions Left
@@ -322,6 +358,7 @@ interface StatsCardProps {
   value: number;
   label: string;
   color: string;
+  bgColor: string;
   suffix?: string;
 }
 
@@ -330,23 +367,24 @@ const StatsCard: React.FC<StatsCardProps> = ({
   value,
   label,
   color,
+  bgColor,
   suffix = "",
 }) => (
   <motion.div
-    whileHover={{ y: -2 }}
-    className="relative overflow-hidden bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-foreground/10 group hover:border-primary/30 transition-all duration-300"
+    whileHover={{ y: -2, scale: 1.02 }}
+    className="relative overflow-hidden bg-card/30 backdrop-blur-sm rounded-xl p-4 border border-foreground/10 group hover:border-primary/30 transition-all duration-300"
   >
     <motion.div
-      className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100"
+      className={`absolute inset-0 bg-gradient-to-br ${bgColor} opacity-0 group-hover:opacity-100`}
       transition={{ duration: 0.3 }}
     />
     <div className="relative z-10">
       <Icon className={`w-5 h-5 ${color} mb-2`} />
-      <div className="text-2xl font-bold">
+      <div className="text-2xl font-bold text-foreground/90">
         {value}
         {suffix}
       </div>
-      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="text-sm text-foreground/60">{label}</div>
     </div>
   </motion.div>
 );

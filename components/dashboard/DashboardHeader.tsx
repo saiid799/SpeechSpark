@@ -1,14 +1,15 @@
-// File: components/dashboard/DashboardHeader.tsx
-
 import React from "react";
 import { motion } from "framer-motion";
 import { useUser } from "@clerk/nextjs";
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import NotificationsPopover from "@/components/notifications/NotificationsPopover";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const DashboardHeader = () => {
   const { user } = useUser();
+  const { notifications, hasUnread, markAsRead, clearAll } = useNotifications();
+
   const timeOfDay = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "morning";
@@ -42,12 +43,12 @@ const DashboardHeader = () => {
               className="pl-10 w-64 bg-background/50 border-foreground/10 focus:border-primary/50"
             />
           </div>
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] flex items-center justify-center text-white">
-              3
-            </span>
-          </Button>
+          <NotificationsPopover
+            notifications={notifications}
+            onMarkAsRead={markAsRead}
+            onClearAll={clearAll}
+            hasUnread={hasUnread}
+          />
         </div>
       </div>
     </div>
@@ -55,6 +56,3 @@ const DashboardHeader = () => {
 };
 
 export default DashboardHeader;
-
-
-
