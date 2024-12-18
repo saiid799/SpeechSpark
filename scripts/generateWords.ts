@@ -24,21 +24,9 @@ const languages = [
   "Turkish",
   "Dutch",
   "Swedish",
-  "Norwegian",
-  "Danish",
-  "Finnish",
-  "Greek",
-  "Polish",
-  "Czech",
-  "Vietnamese",
-  "Thai",
-  "Indonesian",
-  "Malay",
-  "Tagalog",
-  "Swahili",
-  "Persian",
 ];
 
+// Only generate for A1 and A2 initially
 const proficiencyLevels = ["A1", "A2"];
 
 interface GeneratedWord {
@@ -51,58 +39,78 @@ async function generateWords(
   proficiencyLevel: string
 ): Promise<GeneratedWord[]> {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-  const prompt = `Generate 1000 ${language} words at ${proficiencyLevel} level with their English translations. 
-  Respond only with a JSON array in this format: 
+
+  const prompt = `Generate exactly 1000 ${language} words appropriate for ${proficiencyLevel} level learners with their English translations. 
+
+  For level requirements:
+  ${
+    proficiencyLevel === "A1"
+      ? `
+  A1 (Beginner) words should be:
+  - Basic everyday vocabulary
+  - Common nouns, verbs, and adjectives
+  - Simple time expressions
+  - Basic numbers and colors
+  - Common greetings and phrases
+  `
+      : `
+  A2 (Elementary) words should be:
+  - Expanded everyday vocabulary
+  - More varied verbs and tenses
+  - Common expressions and idioms
+  - Words for opinions and feelings
+  - Basic professional vocabulary
+  `
+  }
+
+  Please ensure:
+  - Exactly 1000 unique words
+  - No duplicates
+  - Appropriate difficulty for the level
+  - Mix of nouns, verbs, adjectives, and common phrases
+  - Focus on practical, commonly used words
+  - Words are in their basic/dictionary form
+
+  Respond only with a JSON array in this format:
   [
     {
-      "original": "word1",
+      "original": "word in ${language}",
       "translation": "English translation"
     },
     ...
   ]`;
 
-  const result = await model.generateContent(prompt);
-  const generatedContent = await result.response.text();
+  try {
+    const result = await model.generateContent(prompt);
+    const generatedContent = await result.response.text();
 
-  const jsonContent = generatedContent.substring(
-    generatedContent.indexOf("["),
-    generatedContent.lastIndexOf("]") + 1
-  );
-
-  return JSON.parse(jsonContent);
-}
-
-async function getRandomValueFromUsers(
-  field: string
-): Promise<string | number> {
-  const userCount = await prisma.user.count();
-  if (userCount === 0) {
-    switch (field) {
-      case "nativeLanguage":
-      case "learningLanguage":
-        return "English";
-      case "proficiencyLevel":
-        return "A1";
-      case "targetWordCount":
-        return 1000;
-      default:
-        return "";
+    // Extract JSON from response
+    const jsonMatch = generatedContent.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in response");
     }
+
+    const words = JSON.parse(jsonMatch[0]);
+
+    // Validate word count
+    if (words.length !== 1000) {
+      throw new Error(`Generated ${words.length} words instead of 1000`);
+    }
+
+    // Validate word uniqueness
+    const uniqueWords = new Set(words.map((w: GeneratedWord) => w.original));
+    if (uniqueWords.size !== 1000) {
+      throw new Error("Duplicate words found in generated content");
+    }
+
+    return words;
+  } catch (error) {
+    console.error(
+      `Error generating words for ${language} - ${proficiencyLevel}:`,
+      error
+    );
+    throw error;
   }
-
-  const randomSkip = Math.floor(Math.random() * userCount);
-  const randomUser = await prisma.user.findMany({
-    select: { [field]: true },
-    take: 1,
-    skip: randomSkip,
-  });
-
-  if (randomUser.length === 0 || !(field in randomUser[0])) {
-    throw new Error(`Field ${field} not found in user`);
-  }
-
-  const value = randomUser[0][field as keyof (typeof randomUser)[0]];
-  return typeof value === "number" ? value : String(value);
 }
 
 async function getOrCreateUser(): Promise<string> {
@@ -111,30 +119,22 @@ async function getOrCreateUser(): Promise<string> {
   if (!user) {
     const randomClerkId = `generated-clerk-id-${Math.random()
       .toString(36)
-      .substr(2, 9)}`;
+      .slice(2)}`;
     const randomEmail = `generated-${Math.random()
       .toString(36)
-      .substr(2, 9)}@example.com`;
+      .slice(2)}@example.com`;
 
     user = await prisma.user.create({
       data: {
         clerkId: randomClerkId,
         email: randomEmail,
-        nativeLanguage: (await getRandomValueFromUsers(
-          "nativeLanguage"
-        )) as string,
-        learningLanguage: (await getRandomValueFromUsers(
-          "learningLanguage"
-        )) as string,
-        proficiencyLevel: (await getRandomValueFromUsers(
-          "proficiencyLevel"
-        )) as string,
-        targetWordCount: (await getRandomValueFromUsers(
-          "targetWordCount"
-        )) as number,
+        nativeLanguage: "English", // Default values
+        learningLanguage: "Spanish",
+        proficiencyLevel: "A1",
+        targetWordCount: 1000,
       },
     });
-    console.log("Created a new user for word generation.");
+    console.log("Created new user for word generation:", user.id);
   }
 
   return user.id;
@@ -152,56 +152,80 @@ async function saveWords(
   });
 
   if (!user) {
-    throw new Error("User not found");
+    throw new Error(`User ${userId} not found`);
   }
 
   const existingWords = user.words || [];
 
-  // Process each word
-  for (const word of words) {
-    const wordExists = existingWords.some(
-      (existingWord: Word) =>
-        existingWord.original === word.original &&
-        existingWord.proficiencyLevel === proficiencyLevel
-    );
-
-    if (!wordExists) {
-      existingWords.push({
-        original: word.original,
-        translation: word.translation,
-        learned: false,
-        proficiencyLevel: proficiencyLevel,
-      });
-    }
-  }
+  // Filter out duplicates and prepare new words
+  const newWords = words
+    .filter(
+      (word) =>
+        !existingWords.some(
+          (existingWord: Word) =>
+            existingWord.original === word.original &&
+            existingWord.proficiencyLevel === proficiencyLevel
+        )
+    )
+    .map((word) => ({
+      original: word.original,
+      translation: word.translation,
+      learned: false,
+      proficiencyLevel: proficiencyLevel,
+    }));
 
   // Update user with new words
   await prisma.user.update({
     where: { id: userId },
-    data: { words: existingWords },
+    data: {
+      words: {
+        push: newWords,
+      },
+    },
   });
+
+  console.log(
+    `Added ${newWords.length} new words for ${language} - ${proficiencyLevel}`
+  );
 }
 
 async function main() {
+  console.log("Starting word generation process...");
   const userId = await getOrCreateUser();
-  console.log(`Using user ID: ${userId} for word generation.`);
 
   for (const language of languages) {
-    for (const proficiencyLevel of proficiencyLevels) {
-      console.log(`Generating words for ${language} - ${proficiencyLevel}`);
-      const words = await generateWords(language, proficiencyLevel);
-      console.log(`Saving words for ${language} - ${proficiencyLevel}`);
-      await saveWords(words, language, proficiencyLevel, userId);
-      console.log(`Completed ${language} - ${proficiencyLevel}`);
+    console.log(`Processing language: ${language}`);
+
+    for (const level of proficiencyLevels) {
+      console.log(`Generating ${level} words for ${language}...`);
+
+      try {
+        const words = await generateWords(language, level);
+        console.log(`Successfully generated ${words.length} words`);
+
+        await saveWords(words, language, level, userId);
+        console.log(`Saved ${level} words for ${language}`);
+
+        // Add a small delay between generations to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Failed to process ${language} - ${level}:`, error);
+        // Continue with next iteration despite errors
+        continue;
+      }
     }
   }
+
+  console.log("Word generation process completed");
 }
 
+// Error handling for the main process
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error("Fatal error in word generation process:", error);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
+    console.log("Database connection closed");
   });

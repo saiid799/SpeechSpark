@@ -1,3 +1,5 @@
+// File: lib/languageData.ts
+
 export const languages = [
   { name: "English", code: "en", flag: "/flags/gb.svg" },
   { name: "Spanish", code: "es", flag: "/flags/es.svg" },
@@ -17,18 +19,48 @@ export const languages = [
   { name: "Swedish", code: "sv", flag: "/flags/se.svg" },
 ];
 
+// Only A1 and A2 for initial selection
 export const proficiencyLevels = [
   {
     value: "A1",
     label: "A1 - Beginner",
-    description: "Basic ability to communicate and exchange information in a simple way",
+    description:
+      "Basic ability to communicate and exchange information in a simple way",
     wordCount: 1000,
+    benefit:
+      "Perfect for complete beginners and those starting their language journey",
   },
   {
     value: "A2",
     label: "A2 - Elementary",
     description: "Can understand and express oneself in familiar situations",
-    wordCount: 2000,
+    wordCount: 1000,
+    benefit: "Build upon basic knowledge and expand your vocabulary",
   },
 ];
 
+// Full level progression
+export const allProficiencyLevels = [
+  ...proficiencyLevels,
+  {
+    value: "B1",
+    label: "B1 - Intermediate",
+    description: "Can deal with most situations encountered while traveling",
+    wordCount: 1000,
+    benefit: "Unlock after completing A2",
+  },
+  {
+    value: "B2",
+    label: "B2 - Upper Intermediate",
+    description: "Can interact with native speakers with fluency",
+    wordCount: 1000,
+    benefit: "Unlock after completing B1",
+  },
+  {
+    value: "C1",
+    label: "C1 - Advanced",
+    description: "Can use language flexibly and effectively",
+    wordCount: 1000,
+    benefit: "Unlock after completing B2",
+  },
+];

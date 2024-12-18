@@ -14,10 +14,10 @@ const requestSchema = z.object({
 
 const wordsPerLevel = {
   A1: 1000,
-  A2: 2000,
-  B1: 3000,
-  B2: 4000,
-  C1: 5000,
+  A2: 1000,
+  B1: 1000,
+  B2: 1000,
+  C1: 1000,
 };
 
 const getPagesForLevel = (level: string): number => {

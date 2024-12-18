@@ -1,3 +1,5 @@
+// File: components/dashboard/Progress.tsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -24,10 +26,14 @@ import {
   Award,
   Flame,
   Calendar,
+  ArrowUpRight,
+  ArrowDownRight,
+  CheckCircle,
 } from "lucide-react";
+
 import { useApi } from "@/hooks/useApi";
 
-interface ProgressStats {
+interface UserProgressStats {
   learnedWords: number;
   completedLevels: string[];
   targetWordCount: number;
@@ -37,31 +43,74 @@ interface ProgressStats {
     learned: boolean;
     proficiencyLevel: string;
   }[];
+  dailyProgress: DailyProgress[];
+  achievements: Achievement[];
 }
 
-interface ChartData {
-  name: string;
-  words: number;
+interface DailyProgress {
+  date: string;
+  wordsLearned: number;
   accuracy: number;
   streak: number;
 }
 
-const METRICS = {
-  WORDS: "words",
-  ACCURACY: "accuracy",
-  STREAK: "streak",
-} as const;
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  type: string;
+}
 
-type MetricType = typeof METRICS[keyof typeof METRICS];
+interface LevelProgress {
+  total: number;
+  learned: number;
+}
 
-const Progress: React.FC = () => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState<"week" | "month" | "year">("week");
-  const [selectedMetric] = useState<MetricType>(METRICS.WORDS);
-  const { data: progressData, request: fetchProgressData, isLoading } = useApi<ProgressStats>();
+const Progress = () => {
+  const [selectedTimeframe, setSelectedTimeframe] = useState<
+    "week" | "month" | "year"
+  >("week");
+  const {
+    data: progressData,
+    request: fetchProgressData,
+    isLoading,
+  } = useApi<UserProgressStats>();
+  const [dailyStats, setDailyStats] = useState<DailyProgress[]>([]);
 
   useEffect(() => {
-    fetchProgressData("/api/user");
+    const fetchData = async () => {
+      await fetchProgressData("/api/user");
+    };
+    fetchData();
+
+    // Set up an interval to refresh data every 5 minutes
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [fetchProgressData]);
+
+  useEffect(() => {
+    if (progressData?.dailyProgress) {
+      const filteredData = filterDataByTimeframe(
+        progressData.dailyProgress,
+        selectedTimeframe
+      );
+      setDailyStats(filteredData);
+    }
+  }, [progressData, selectedTimeframe]);
+
+  const filterDataByTimeframe = (data: DailyProgress[], timeframe: string) => {
+    const now = new Date();
+    const timeframes = {
+      week: 7,
+      month: 30,
+      year: 365,
+    };
+    const days = timeframes[timeframe as keyof typeof timeframes];
+    const cutoff = new Date(now.setDate(now.getDate() - days));
+
+    return data.filter((item) => new Date(item.date) >= cutoff);
+  };
 
   const metrics = React.useMemo(() => {
     if (!progressData) return null;
@@ -69,52 +118,24 @@ const Progress: React.FC = () => {
     const totalWords = progressData.words.length;
     const learnedWords = progressData.words.filter((w) => w.learned).length;
     const progress = (learnedWords / progressData.targetWordCount) * 100;
-    const accuracy = Math.round((learnedWords / totalWords) * 100) || 0;
-    const streak = 7; // Example value - implement actual streak calculation
+    const accuracy = Math.round(
+      progressData.dailyProgress.reduce((acc, curr) => acc + curr.accuracy, 0) /
+        progressData.dailyProgress.length || 0
+    );
+    const currentStreak =
+      progressData.dailyProgress[progressData.dailyProgress.length - 1]
+        ?.streak || 0;
 
     return {
       totalWords,
       learnedWords,
       progress,
       accuracy,
-      streak,
+      currentStreak,
     };
   }, [progressData]);
 
-  const chartData: ChartData[] = React.useMemo(() => {
-    if (selectedTimeframe === "week") {
-      return [
-        { name: "Mon", words: 12, accuracy: 85, streak: 1 },
-        { name: "Tue", words: 15, accuracy: 90, streak: 2 },
-        { name: "Wed", words: 18, accuracy: 88, streak: 3 },
-        { name: "Thu", words: 22, accuracy: 92, streak: 4 },
-        { name: "Fri", words: 25, accuracy: 95, streak: 5 },
-        { name: "Sat", words: 30, accuracy: 89, streak: 6 },
-        { name: "Sun", words: 28, accuracy: 91, streak: 7 },
-      ];
-    }
-    // Add month and year data handlers here
-    return [];
-  }, [selectedTimeframe]);
-
-  const levelProgress = React.useMemo(() => {
-    if (!progressData) return [];
-    
-    const levels = ["A1", "A2", "B1", "B2", "C1"];
-    return levels.map(level => {
-      const levelWords = progressData.words.filter(w => w.proficiencyLevel === level);
-      const completed = levelWords.filter(w => w.learned).length;
-      const target = levelWords.length;
-      return {
-        level,
-        completed: completed || 0,
-        target: target || 100,
-        percentage: target ? Math.round((completed / target) * 100) : 0,
-      };
-    });
-  }, [progressData]);
-
-  if (isLoading) {
+  if (isLoading || !progressData) {
     return (
       <div className="flex items-center justify-center h-96">
         <motion.div
@@ -126,9 +147,20 @@ const Progress: React.FC = () => {
     );
   }
 
+  const levelProgress: Record<string, LevelProgress> =
+    progressData.words.reduce((acc, word) => {
+      const level = word.proficiencyLevel;
+      if (!acc[level]) {
+        acc[level] = { total: 0, learned: 0 };
+      }
+      acc[level].total++;
+      if (word.learned) acc[level].learned++;
+      return acc;
+    }, {} as Record<string, LevelProgress>);
+
   return (
     <div className="space-y-6">
-      {/* Header with Gradient Background */}
+      {/* Header */}
       <div className="bg-gradient-to-r from-background via-background/95 to-primary/10 p-8 rounded-xl border border-foreground/10">
         <h1 className="text-4xl font-bold mb-2">
           Learning{" "}
@@ -138,7 +170,7 @@ const Progress: React.FC = () => {
         </h1>
         <div className="flex items-center gap-2 text-muted-foreground">
           <Calendar className="w-5 h-5" />
-          <p>Track your language learning journey and achievements</p>
+          <p>Track your {progressData.learningLanguage} learning journey</p>
         </div>
       </div>
 
@@ -153,10 +185,10 @@ const Progress: React.FC = () => {
         />
         <StatsCard
           title="Daily Streak"
-          value={metrics?.streak || 0}
+          value={metrics?.currentStreak || 0}
           subtitle="consecutive days"
           icon={Flame}
-          trend={{ value: 2, isPositive: true }}
+          trend={{ value: metrics?.currentStreak || 0, isPositive: true }}
         />
         <StatsCard
           title="Accuracy Rate"
@@ -174,12 +206,14 @@ const Progress: React.FC = () => {
         />
       </div>
 
-      {/* Main Chart */}
+      {/* Progress Chart */}
       <Card className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h2 className="text-xl font-semibold">Learning Activity</h2>
-            <p className="text-sm text-muted-foreground">Track your daily learning progress</p>
+            <p className="text-sm text-muted-foreground">
+              Track your daily progress
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -207,9 +241,9 @@ const Progress: React.FC = () => {
         </div>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <LineChart data={dailyStats}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--muted))" />
-              <XAxis dataKey="name" stroke="rgb(var(--muted-foreground))" />
+              <XAxis dataKey="date" stroke="rgb(var(--muted-foreground))" />
               <YAxis stroke="rgb(var(--muted-foreground))" />
               <Tooltip
                 contentStyle={{
@@ -220,11 +254,20 @@ const Progress: React.FC = () => {
               <Legend />
               <Line
                 type="monotone"
-                dataKey={selectedMetric}
+                dataKey="wordsLearned"
+                name="Words Learned"
                 stroke="rgb(var(--primary))"
                 strokeWidth={2}
                 dot={{ stroke: "rgb(var(--primary))", strokeWidth: 2 }}
                 activeDot={{ r: 6, stroke: "rgb(var(--background))" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="accuracy"
+                name="Accuracy (%)"
+                stroke="rgb(var(--secondary))"
+                strokeWidth={2}
+                dot={{ stroke: "rgb(var(--secondary))", strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -234,23 +277,25 @@ const Progress: React.FC = () => {
       {/* Level Progress */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-2">Proficiency Levels</h2>
-        <p className="text-sm text-muted-foreground mb-6">Track your progress across different language levels</p>
+        <p className="text-sm text-muted-foreground mb-6">
+          Track your progress across different language levels
+        </p>
         <div className="space-y-6">
-          {levelProgress.map((level) => (
-            <div key={level.level} className="space-y-2">
+          {Object.entries(levelProgress).map(([level, data]) => (
+            <div key={level} className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="font-medium">Level {level.level}</span>
+                <span className="font-medium">Level {level}</span>
                 <span className="text-sm text-muted-foreground">
-                  {level.completed}/{level.target} words
+                  {data.learned}/{data.total} words
                 </span>
               </div>
               <div className="relative pt-1">
-                <ProgressBar 
-                  value={level.percentage}
+                <ProgressBar
+                  value={(data.learned / data.total) * 100}
                   className="h-2"
                 />
                 <span className="absolute right-0 -top-1 text-xs text-muted-foreground">
-                  {level.percentage}%
+                  {Math.round((data.learned / data.total) * 100)}%
                 </span>
               </div>
             </div>
@@ -260,8 +305,62 @@ const Progress: React.FC = () => {
 
       {/* Achievements & Goals */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <RecentAchievements />
-        <LearningGoals metrics={metrics} />
+        {/* Recent Achievements */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Trophy className="w-5 h-5 text-primary" />
+            <div>
+              <h2 className="text-xl font-semibold">Recent Achievements</h2>
+              <p className="text-sm text-muted-foreground">
+                Your latest language learning milestones
+              </p>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {progressData.achievements.slice(0, 3).map((achievement) => (
+              <Achievement
+                key={achievement.id}
+                icon={getAchievementIcon(achievement.type)}
+                title={achievement.title}
+                description={achievement.description}
+                date={new Date(achievement.date).toLocaleDateString()}
+              />
+            ))}
+          </div>
+        </Card>
+
+        {/* Learning Goals */}
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Target className="w-5 h-5 text-primary" />
+            <div>
+              <h2 className="text-xl font-semibold">Learning Goals</h2>
+              <p className="text-sm text-muted-foreground">
+                Track your progress towards your goals
+              </p>
+            </div>
+          </div>
+          <div className="space-y-6">
+            <Goal
+              title="Daily Practice Goal"
+              current={metrics?.currentStreak || 0}
+              target={7}
+              unit="days"
+            />
+            <Goal
+              title="Weekly New Words"
+              current={metrics?.learnedWords || 0}
+              target={100}
+              unit="words"
+            />
+            <Goal
+              title="Accuracy Target"
+              current={metrics?.accuracy || 0}
+              target={95}
+              unit="%"
+            />
+          </div>
+        </Card>
       </div>
     </div>
   );
@@ -295,7 +394,11 @@ const StatsCard: React.FC<StatsCardProps> = ({
             trend.isPositive ? "text-green-500" : "text-red-500"
           }`}
         >
-          <TrendingUp className={`w-4 h-4 ${!trend.isPositive && "rotate-180"}`} />
+          {trend.isPositive ? (
+            <ArrowUpRight className="w-4 h-4" />
+          ) : (
+            <ArrowDownRight className="w-4 h-4" />
+          )}
           {trend.value}%
         </div>
       )}
@@ -303,78 +406,6 @@ const StatsCard: React.FC<StatsCardProps> = ({
     <div>
       <div className="text-2xl font-bold mb-1">{value}</div>
       <div className="text-sm text-muted-foreground">{subtitle}</div>
-    </div>
-  </Card>
-);
-
-const RecentAchievements: React.FC = () => (
-  <Card className="p-6">
-    <div className="flex items-center gap-2 mb-6">
-      <Trophy className="w-5 h-5 text-primary" />
-      <div>
-        <h2 className="text-xl font-semibold">Recent Achievements</h2>
-        <p className="text-sm text-muted-foreground">Your latest language learning milestones</p>
-      </div>
-    </div>
-    <div className="space-y-4">
-      <Achievement
-        icon={Star}
-        title="Perfect Week"
-        description="Maintained a 7-day study streak"
-        date="Today"
-      />
-      <Achievement
-        icon={Award}
-        title="Vocabulary Master"
-        description="Learned 100 new words"
-        date="Yesterday"
-      />
-      <Achievement
-        icon={Target}
-        title="Accuracy Champion"
-        description="Achieved 100% accuracy in practice"
-        date="2 days ago"
-      />
-    </div>
-  </Card>
-);
-
-interface LearningGoalsProps {
-  metrics: {
-    streak?: number;
-    accuracy?: number;
-    learnedWords?: number;
-  } | null;
-}
-
-const LearningGoals: React.FC<LearningGoalsProps> = ({ metrics }) => (
-  <Card className="p-6">
-    <div className="flex items-center gap-2 mb-6">
-      <Target className="w-5 h-5 text-primary" />
-      <div>
-        <h2 className="text-xl font-semibold">Learning Goals</h2>
-        <p className="text-sm text-muted-foreground">Track your progress towards your goals</p>
-      </div>
-    </div>
-    <div className="space-y-6">
-      <Goal
-        title="Daily Practice Goal"
-        current={metrics?.streak || 0}
-        target={7}
-        unit="days"
-      />
-      <Goal
-        title="Weekly New Words"
-        current={metrics?.learnedWords || 0}
-        target={100}
-        unit="words"
-      />
-      <Goal
-        title="Accuracy Target"
-        current={metrics?.accuracy || 0}
-        target={95}
-        unit="%"
-      />
     </div>
   </Card>
 );
@@ -403,7 +434,9 @@ const Achievement: React.FC<AchievementProps> = ({
       <h3 className="font-semibold">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
-    <div className="text-xs text-muted-foreground whitespace-nowrap">{date}</div>
+    <div className="text-xs text-muted-foreground whitespace-nowrap">
+      {date}
+    </div>
   </motion.div>
 );
 
@@ -433,6 +466,20 @@ const Goal: React.FC<GoalProps> = ({ title, current, target, unit }) => {
       </div>
     </div>
   );
+};
+
+// Utility function to get the appropriate icon for different achievement types
+const getAchievementIcon = (type: string): React.ElementType => {
+  const icons = {
+    streak: Flame,
+    completion: CheckCircle,
+    milestone: Trophy,
+    mastery: Star,
+    accuracy: Target,
+    default: Award,
+  };
+
+  return icons[type as keyof typeof icons] || icons.default;
 };
 
 export default Progress;

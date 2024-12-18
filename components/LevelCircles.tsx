@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
+import { Lock } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { allProficiencyLevels } from "@/lib/languageData";
 import LevelDetailsModal from "@/components/LevelDetailsModal";
 
 interface LevelCirclesProps {
@@ -15,8 +17,6 @@ interface LevelCirclesProps {
   completedLevels: string[];
   onLevelClick: (level: string) => void;
 }
-
-const levels = ["A1", "A2", "B1", "B2", "C1"];
 
 const LevelCircles: React.FC<LevelCirclesProps> = ({
   currentLevel,
@@ -26,7 +26,11 @@ const LevelCircles: React.FC<LevelCirclesProps> = ({
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
 
   const handleLevelClick = (level: string) => {
-    if (completedLevels.includes(level) || level === currentLevel) {
+    const isBasicLevel = level === "A1" || level === "A2";
+    const isUnlocked =
+      completedLevels.includes(level) || level === currentLevel;
+
+    if (isBasicLevel || isUnlocked) {
       setSelectedLevel(level);
     } else {
       onLevelClick(level);
@@ -36,25 +40,27 @@ const LevelCircles: React.FC<LevelCirclesProps> = ({
   return (
     <>
       <div className="flex justify-center space-x-6 mt-12">
-        {levels.map((level) => {
-          const isCompleted = completedLevels.includes(level);
-          const isCurrent = level === currentLevel;
+        {allProficiencyLevels.map((level) => {
+          const isCompleted = completedLevels.includes(level.value);
+          const isCurrent = level.value === currentLevel;
           const isAccessible =
+            level.value === "A1" ||
+            level.value === "A2" ||
             isCompleted ||
-            isCurrent ||
-            completedLevels.length >= levels.indexOf(level);
+            isCurrent;
+          const isLocked = !isAccessible;
 
           return (
-            <TooltipProvider key={level}>
+            <TooltipProvider key={level.value}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <motion.div
                     whileHover={{ scale: isAccessible ? 1.1 : 1 }}
                     whileTap={{ scale: isAccessible ? 0.9 : 1 }}
-                    onClick={() => handleLevelClick(level)}
+                    onClick={() => handleLevelClick(level.value)}
                     className={`
-                      w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold cursor-pointer
-                      transition-all duration-300 shadow-lg
+                      w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold
+                      transition-all duration-300 shadow-lg relative
                       ${
                         isAccessible
                           ? "hover:shadow-xl"
@@ -67,20 +73,34 @@ const LevelCircles: React.FC<LevelCirclesProps> = ({
                           : ""
                       }
                       ${
-                        !isCompleted && !isCurrent
+                        !isCompleted && !isCurrent && !isLocked
                           ? "bg-background border-2 border-primary/30 text-primary"
                           : ""
                       }
+                      ${isLocked ? "bg-gray-200 border-gray-300" : ""}
                     `}
                   >
-                    {level}
+                    {level.value}
+                    {isLocked && (
+                      <div className="absolute inset-0 bg-background/50 rounded-full flex items-center justify-center">
+                        <Lock className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
                   </motion.div>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>
-                    {isAccessible
-                      ? `View ${level} words`
-                      : `Complete previous levels to unlock ${level}`}
+                  <p className="text-sm">
+                    {isLocked
+                      ? `Complete ${
+                          level.value === "B1"
+                            ? "A2"
+                            : `${level.value.charAt(0)}${
+                                parseInt(level.value.charAt(1)) - 1
+                              }`
+                        } to unlock`
+                      : `${level.label} - ${
+                          isCompleted ? "Completed" : "Current Level"
+                        }`}
                   </p>
                 </TooltipContent>
               </Tooltip>
