@@ -58,13 +58,13 @@ const Navbar: React.FC = () => {
 
   return (
     <motion.div
-      className="fixed top-0 z-50 w-full px-4 py-3"
+      className="fixed top-0 z-50 w-full"
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
       <nav
-        className={`relative rounded-full transition-all duration-300 ${
+        className={`mx-4 my-3 rounded-full transition-all duration-300 ${
           isScrolled
             ? "bg-background/80 backdrop-blur-md shadow-lg"
             : "bg-background/50"
@@ -87,6 +87,7 @@ const Navbar: React.FC = () => {
                 SpeechSpark
               </span>
             </Link>
+
             <div className="hidden md:flex items-center space-x-1">
               {navItems.map((item) => (
                 <NavItem
@@ -100,6 +101,7 @@ const Navbar: React.FC = () => {
                 </NavItem>
               ))}
             </div>
+
             <div className="hidden md:flex items-center space-x-3">
               {isLoaded && isSignedIn ? (
                 <>
@@ -127,10 +129,12 @@ const Navbar: React.FC = () => {
                 </>
               )}
             </div>
+
             <div className="md:hidden">
               <button
                 className="text-foreground hover:text-primary transition-colors duration-300"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Toggle mobile menu"
               >
                 {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -138,6 +142,7 @@ const Navbar: React.FC = () => {
           </div>
         </div>
       </nav>
+
       <AnimatePresence>
         {isMobileMenuOpen && (
           <motion.div
@@ -145,7 +150,7 @@ const Navbar: React.FC = () => {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-background/95 backdrop-blur-md rounded-b-2xl mt-2 overflow-hidden shadow-lg"
+            className="md:hidden mx-4 mt-2 bg-background/95 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg"
           >
             <div className="px-4 py-4 space-y-4">
               {navItems.map((item) => (

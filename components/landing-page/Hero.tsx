@@ -1,8 +1,10 @@
+// File: components/landing-page/Hero.tsx
+
 import React from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
-import { ArrowRight, BookOpen, Globe, Zap } from "lucide-react";
+import { ArrowRight, Globe, Zap, BookOpen } from "lucide-react";
 
 const Hero: React.FC = () => {
   const { isSignedIn, user } = useUser();
@@ -16,7 +18,7 @@ const Hero: React.FC = () => {
   };
 
   return (
-    <div className="relative overflow-hidden bg-background min-h-screen flex items-center">
+    <div className="relative overflow-hidden bg-background min-h-screen flex items-center pt-16 sm:pt-24 md:pt-32">
       <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:60px_60px]" />
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 backdrop-blur-3xl" />
       <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-primary/5 to-transparent" />
