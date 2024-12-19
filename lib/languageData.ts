@@ -17,6 +17,10 @@ export const languages = [
   { name: "Turkish", code: "tr", flag: "/flags/tr.svg" },
   { name: "Dutch", code: "nl", flag: "/flags/nl.svg" },
   { name: "Swedish", code: "sv", flag: "/flags/se.svg" },
+  { name: "Persian", code: "fa", flag: "/flags/ir.svg" }, // Using Iran flag for Persian
+  { name: "Indonesian", code: "id", flag: "/flags/id.svg" },
+  { name: "Swahili", code: "sw", flag: "/flags/tz.svg" }, // Using Tanzania flag for Swahili
+  { name: "Greek", code: "el", flag: "/flags/gr.svg" },
 ];
 
 // Only A1 and A2 for initial selection

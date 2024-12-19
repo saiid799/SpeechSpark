@@ -66,6 +66,7 @@ const languageToCode: { [key: string]: string } = {
   Persian: "fa",
 };
 
+
 interface UseSpeechSynthesisResult {
   speak: (text: string, lang: string) => void;
   cancel: () => void;

@@ -35,3 +35,9 @@ export interface WordStats {
   totalWords: number;
   progress: number;
 }
+
+export interface Language {
+  name: string;
+  code: string;
+  flag: string;
+}
