@@ -25,27 +25,29 @@ Installation
 
 Clone the repository
 
-bashCopygit clone https://github.com/[username]/speech-spark
+git clone https://github.com/[username]/speech-spark
 cd speech-spark
 
 Install dependencies
 
-bashCopynpm install
+npm install
 
 Set up environment variables
 
-bashCopycp .env.example .env.local
+cp .env.example .env.local
 
 Add your environment variables
 
-envCopyNEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 CLERK_SECRET_KEY=your_clerk_secret_key
 DATABASE_URL=your_mongodb_url
 GOOGLE_AI_API_KEY=your_google_ai_api_key
 
 Run the development server
 
-bashCopynpm run dev
+npm run dev
+
+
 🏗️ Tech Stack
 
 Framework: Next.js 14
@@ -56,3 +58,7 @@ AI: Google Generative AI
 Styling: Tailwind CSS
 Animation: Framer Motion
 Data Visualization: Recharts
+
+📧 Contact
+Ali Mahmoud Ali
+Project Link: https://github.com/saiid799/speech-spark
