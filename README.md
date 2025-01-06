@@ -63,8 +63,7 @@ Styling: Tailwind CSS
 Animation: Framer Motion
 Data Visualization: Recharts
 
-📧 Contact
-
+Made by 
 Ali Mahmoud Ali
 
 Project Link: https://github.com/saiid799/speech-spark
