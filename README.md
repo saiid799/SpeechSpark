@@ -39,9 +39,13 @@ cp .env.example .env.local
 Add your environment variables
 
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+
 CLERK_SECRET_KEY=your_clerk_secret_key
+
 DATABASE_URL=your_mongodb_url
+
 GOOGLE_AI_API_KEY=your_google_ai_api_key
+
 
 Run the development server
 
