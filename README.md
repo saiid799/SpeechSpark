@@ -64,5 +64,7 @@ Animation: Framer Motion
 Data Visualization: Recharts
 
 📧 Contact
+
 Ali Mahmoud Ali
+
 Project Link: https://github.com/saiid799/speech-spark
