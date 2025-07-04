@@ -918,7 +918,7 @@ function getCacheExpiry(successRate: number, langConfig?: LanguageConfig): numbe
 /**
  * Multi-strategy fallback word generation with cultural intelligence
  */
-async function generateWithMultipleStrategies(
+/* async function generateWithMultipleStrategies(
   learningLanguage: string,
   nativeLanguage: string,
   proficiencyLevel: string,
@@ -992,12 +992,12 @@ async function generateWithMultipleStrategies(
   }
   
   return [];
-}
+} */
 
 /**
  * Generate words for specific vocabulary categories
  */
-async function generateCategorySpecificWords(
+/* async function generateCategorySpecificWords(
   learningLanguage: string,
   nativeLanguage: string,
   proficiencyLevel: string,
@@ -1029,12 +1029,12 @@ Output JSON format:
   if (!jsonMatch) throw new Error("No valid JSON in category-specific response");
   
   return JSON.parse(jsonMatch[0]);
-}
+} */
 
 /**
  * Generate culturally contextual words based on language configuration
  */
-async function generateCulturallyContextualWords(
+/* async function generateCulturallyContextualWords(
   learningLanguage: string,
   nativeLanguage: string,
   proficiencyLevel: string,
@@ -1076,7 +1076,7 @@ JSON format:
   if (!jsonMatch) throw new Error("No valid JSON in cultural context response");
   
   return JSON.parse(jsonMatch[0]);
-}
+} */
 
 /**
  * Get fallback words when AI generation fails - prioritizes static words over API calls
@@ -1259,7 +1259,7 @@ Output format (JSON only):
  * Check if fallback words are available for a language/level
  * Now always returns true since we can generate dynamically
  */
-export function hasFallbackWords(learningLanguage: string, proficiencyLevel: string): boolean {
+export function hasFallbackWords(_learningLanguage: string, _proficiencyLevel: string): boolean {
   // With dynamic generation, we can always attempt to provide fallback words
   // At minimum, we have emergency English words as final fallback
   return true;
@@ -1270,9 +1270,9 @@ export function hasFallbackWords(learningLanguage: string, proficiencyLevel: str
  * Returns estimated count since we generate dynamically
  */
 export function getFallbackWordCount(
-  learningLanguage: string,
+  _learningLanguage: string,
   proficiencyLevel: string,
-  existingWords: { original: string }[] = []
+  _existingWords: { original: string }[] = []
 ): number {
   // For dynamic system, we can theoretically generate many words
   // Return a reasonable estimate based on emergency words + dynamic potential
@@ -1404,7 +1404,7 @@ export async function intelligentCacheWarming(
   
   for (const {language, level, priority} of sortedLanguages) {
     try {
-      const langConfig = LANGUAGE_CONFIGS[language];
+      // const langConfig = LANGUAGE_CONFIGS[language];
       const wordsToCache = Math.max(priority * 25, 50); // More words for higher priority
       
       console.log(`🎯 Warming ${language} ${level} (priority: ${priority}, words: ${wordsToCache})`);

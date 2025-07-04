@@ -1,0 +1,49 @@
+
+> speech-spark@0.1.0 build
+> next build
+
+   ▲ Next.js 15.3.4
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 27.0s
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./app/api/user/level-progress/route.ts
+6:28  Error: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+60:11  Error: 'updatedUser' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/words/generate/route.ts
+9:46  Error: 'getFallbackWordCount' is defined but never used.  @typescript-eslint/no-unused-vars
+502:3  Error: 'existingWords' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/BatchLoaderInline.tsx
+7:10  Error: 'Progress' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/BatchPreparation.tsx
+44:3  Error: 'level' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/Dashboard.tsx
+248:13  Error: '_level' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+276:34  Error: '_context' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+332:6  Warning: React Hook useCallback has an unnecessary dependency: 'words'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+359:6  Warning: React Hook useCallback has a missing dependency: 'updateUserPage'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+461:6  Warning: React Hook useEffect has missing dependencies: 'fetchLearnedWords', 'fetchWords', and 'searchParams'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+461:43  Warning: React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
+468:6  Warning: React Hook useEffect has a missing dependency: 'fetchLearnedWords'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+539:6  Warning: React Hook useEffect has a missing dependency: 'handleBatchGeneration'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/dashboard/Practice.tsx
+159:6  Warning: React Hook useEffect has a missing dependency: 'handleGenerateWords'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/dashboard/SmartRecommendations.tsx
+47:6  Warning: React Hook useEffect has a missing dependency: 'generateRecommendations'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./lib/fallback-words.ts
+1262:34  Error: '_learningLanguage' is defined but never used.  @typescript-eslint/no-unused-vars
+1262:61  Error: '_proficiencyLevel' is defined but never used.  @typescript-eslint/no-unused-vars
+1275:3  Error: '_existingWords' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

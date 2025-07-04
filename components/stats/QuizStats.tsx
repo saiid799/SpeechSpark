@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Target, TrendingUp } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -15,10 +15,10 @@ export const QuizStats: React.FC<QuizStatsProps> = ({
   streak,
 }) => {
   // Calculate actual values
-  const calculateScore = () =>
-    Math.min(correctAnswers * 100 + streak * 50, 1000);
-  const calculateAccuracy = () =>
-    totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  const calculateScore = useCallback(() =>
+    Math.min(correctAnswers * 100 + streak * 50, 1000), [correctAnswers, streak]);
+  const calculateAccuracy = useCallback(() =>
+    totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0, [correctAnswers, totalQuestions]);
 
   // Initialize state with actual values
   const initialStats = {
@@ -61,7 +61,7 @@ export const QuizStats: React.FC<QuizStatsProps> = ({
     }, interval);
 
     return () => clearInterval(timer);
-  }, [correctAnswers, totalQuestions, streak]);
+  }, [correctAnswers, totalQuestions, streak, calculateScore, calculateAccuracy]);
 
   const getGradeClass = (
     value: number,

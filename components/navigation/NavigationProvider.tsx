@@ -2,8 +2,8 @@
 
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   NavigationContext,
   NavigationState,
@@ -21,7 +21,6 @@ interface NavigationProviderProps {
 }
 
 const NavigationProvider: React.FC<NavigationProviderProps> = ({ children }) => {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [context, setContext] = useState<NavigationContext>(defaultNavigationContext);
   const [history, setHistory] = useState<NavigationItem[]>([]);

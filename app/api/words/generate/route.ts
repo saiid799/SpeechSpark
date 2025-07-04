@@ -6,7 +6,7 @@ import { RateLimiter } from "limiter";
 import { filterDuplicateWords, filterDuplicateWordsAdvanced } from "@/lib/word-deduplication";
 import { WORDS_PER_BATCH, getCurrentBatch } from "@/lib/level-config";
 import { invalidateWordCache } from "@/lib/word-cache";
-import { getFallbackWords, hasFallbackWords, getFallbackWordCount } from "@/lib/fallback-words";
+import { getFallbackWords, hasFallbackWords } from "@/lib/fallback-words";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
 
@@ -499,7 +499,7 @@ async function generateBackfillWords(
   user: { id: string; learningLanguage: string; nativeLanguage: string; proficiencyLevel: string },
   batchNumber: number,
   wordsNeeded: number,
-  existingWords: { original: string; translation: string; learned: boolean; proficiencyLevel: string }[]
+  _existingWords: { original: string; translation: string; learned: boolean; proficiencyLevel: string }[]
 ): Promise<{ generatedCount: number }> {
   console.log(`Backfill: Generating ${wordsNeeded} additional words for batch ${batchNumber}`);
   
