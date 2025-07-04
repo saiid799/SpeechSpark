@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import UserQuestionnaire from "@/components/UserQuestionnaire";
 import { ApiError, handleApiError } from "@/lib/api-error";
 
+export const dynamic = 'force-dynamic';
+
 export default async function OnboardingPage() {
   try {
     const { userId } = await auth();
