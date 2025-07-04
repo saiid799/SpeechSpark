@@ -245,7 +245,7 @@ const Dashboard = () => {
       const completed = searchParams.get('completed');
       const batch = searchParams.get('batch');
       const page = searchParams.get('page');
-      const _level = searchParams.get('level');
+      // const level = searchParams.get('level');
       
       if (completed) {
         setCompletedWordId(completed);
@@ -273,7 +273,7 @@ const Dashboard = () => {
     useEffect(() => {
       // Listen for word learned events with enhanced context
       const handleWordLearned = (event: CustomEvent) => {
-        const { wordId, context: _context } = event.detail || {};
+        const { wordId } = event.detail || {};
         
         // Set completed word for contextual feedback
         if (wordId) {
@@ -329,7 +329,7 @@ const Dashboard = () => {
     });
 
     return canProgress;
-  }, [userData, words]);
+  }, [userData]);
 
   const handleLevelProgression = useCallback(async () => {
     try {
@@ -356,7 +356,7 @@ const Dashboard = () => {
       console.error("Error progressing level:", error);
       toast.error(error instanceof Error ? error.message : "Failed to progress level");
     }
-  }, [fetchUserData]);
+  }, [fetchUserData, updateUserPage]);
 
   const handleBatchGeneration = useCallback(async () => {
     if (isGeneratingWords) return;
@@ -458,14 +458,14 @@ const Dashboard = () => {
         fetchWords(currentLearningPage, targetLevel !== userDataResponse.proficiencyLevel ? targetLevel : undefined);
       }
     }
-  }, [userDataResponse, showLearnedWords, searchParams.get("level")]);
+  }, [userDataResponse, showLearnedWords, searchParams, fetchLearnedWords, fetchWords]);
 
   // Separate effect for learned words fetch
   useEffect(() => {
     if (showLearnedWords && userDataResponse) {
       fetchLearnedWords();
     }
-  }, [showLearnedWords, userDataResponse]);
+  }, [showLearnedWords, userDataResponse, fetchLearnedWords]);
 
   // Check level progression whenever words change
   useEffect(() => {
@@ -536,7 +536,7 @@ const Dashboard = () => {
         }
       }
     }
-  }, [wordsData, isGeneratingWords, showLearnedWords, hasAttemptedGeneration, justCompletedBatch, currentPage, showBatchPreparation]);
+  }, [wordsData, isGeneratingWords, showLearnedWords, hasAttemptedGeneration, justCompletedBatch, currentPage, showBatchPreparation, handleBatchGeneration]);
 
   // Handle user data errors (redirect to onboarding if user not found)
   useEffect(() => {

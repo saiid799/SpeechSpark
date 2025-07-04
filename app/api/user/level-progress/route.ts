@@ -57,7 +57,7 @@ export async function POST(_request: Request) {
     }
 
     // Update user's proficiency level
-    const updatedUser = await prisma.user.update({
+    await prisma.user.update({
       where: { clerkId: userId },
       data: {
         proficiencyLevel: nextLevel,

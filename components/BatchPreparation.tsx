@@ -41,7 +41,6 @@ const BatchPreparation: React.FC<BatchPreparationProps> = ({
   isGenerating = false,
   generationError = null,
   language = "your target language",
-  level = "current level",
 }) => {
   const [stage, setStage] = useState<'analyzing' | 'generating' | 'finalizing' | 'complete'>('analyzing');
   const [progress, setProgress] = useState(0);

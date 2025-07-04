@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ const SmartRecommendations: React.FC<SmartRecommendationsProps> = ({
     }
   }, [words, userProgress]);
 
-  const generateRecommendations = async () => {
+  const generateRecommendations = useCallback(async () => {
     setIsRefreshing(true);
     
     // Simulate API delay for realistic UX
@@ -59,7 +59,7 @@ const SmartRecommendations: React.FC<SmartRecommendationsProps> = ({
     
     setRecommendations(newRecommendations);
     setIsRefreshing(false);
-  };
+  }, [words, userProgress]);
 
   const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
     switch (priority) {
