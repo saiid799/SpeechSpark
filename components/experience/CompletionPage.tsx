@@ -19,7 +19,7 @@ interface CompletionPageProps {
     streak: number;
     attempts?: { questionId: string; attempts: number }[];
   };
-  wordIndex: number; // Make sure this is included
+  wordId: string;
   onComplete: () => void;
 }
 
@@ -29,7 +29,7 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
   learningLanguage,
   stats,
   onComplete,
-  wordIndex,
+  wordId,
 }) => {
   const { speak } = useSpeechSynthesis();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -38,7 +38,7 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
     const updateWordStatus = async () => {
       setIsUpdatingStatus(true);
       try {
-        const response = await fetch(`/api/words/${wordIndex}/status`, {
+        const response = await fetch(`/api/words/${wordId}/status`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -52,6 +52,9 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
 
         // Show success toast after successful update
         toast.success("Progress saved successfully!");
+
+        // Dispatch event to notify Dashboard of word completion
+        window.dispatchEvent(new CustomEvent("wordLearned"));
 
         // Trigger celebration effects
         confetti({
@@ -71,7 +74,7 @@ const CompletionPage: React.FC<CompletionPageProps> = ({
     };
 
     updateWordStatus();
-  }, [wordIndex, learningLanguage, speak]);
+  }, [wordId, learningLanguage, speak]);
 
   const handleContinue = () => {
     if (!isUpdatingStatus) {

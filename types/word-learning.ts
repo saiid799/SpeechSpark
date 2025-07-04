@@ -2,7 +2,7 @@
 
 export interface Question {
   id: string;
-  wordIndex: number;
+  wordId: string;
   question: string;
   options: string[];
   correctAnswer: string;
@@ -34,7 +34,7 @@ export interface WordForm {
 }
 
 export interface WordLearningExperienceProps {
-  wordIndex: number;
+  wordId: string;
   original: string;
   translation: string;
   learningLanguage: string;

@@ -37,8 +37,8 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
           <Image
             src={language.flag}
             alt={`${language.name} flag`}
-            layout="fill"
-            objectFit="cover"
+            fill
+            className="object-cover"
           />
           <div
             className={`absolute inset-0 ${
@@ -47,7 +47,16 @@ const LanguageCard: React.FC<LanguageCardProps> = ({
           />
         </div>
         <div className="p-3 text-center">
-          <span className="font-medium text-sm">{language.name}</span>
+          <span 
+            className="font-black text-sm font-display tracking-tight"
+            style={{
+              fontFamily: "'DM Sans', 'Inter', sans-serif",
+              fontWeight: 700,
+              letterSpacing: "-0.015em"
+            }}
+          >
+            {language.name}
+          </span>
         </div>
         {selected && (
           <motion.div

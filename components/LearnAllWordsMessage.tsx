@@ -21,7 +21,7 @@ const LearnAllWordsMessage: React.FC<LearnAllWordsMessageProps> = ({
       <div className="flex items-center space-x-2 text-primary">
         <AlertCircle className="h-5 w-5" />
         <p className="font-semibold">
-          Learn all words in this batch before moving to the next one!
+          Learn at least 40 words (80%) in this batch to continue!
         </p>
       </div>
     </motion.div>

@@ -1,6 +1,6 @@
 // File: components/experience/QuizQuestions.tsx
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ interface QuizQuestionsProps {
   questions: Question[];
   learningLanguage: string;
   nativeLanguage: string;
-  wordIndex: number;
+  wordId: string;
   onComplete: (stats: {
     correctAnswers: number;
     totalQuestions: number;
@@ -51,8 +51,43 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
   });
 
   const { speak, speaking } = useSpeechSynthesis();
+
+  // Extract target language text from question for pronunciation
+  const extractTargetLanguageText = useCallback((questionText: string): string => {
+    if (!questionText || typeof questionText !== 'string') {
+      return '';
+    }
+    
+    // Clean the text first
+    const cleanText = questionText.trim();
+    
+    // Look for text within quotes (including curly quotes and various quote types)
+    const quotedTextMatch = cleanText.match(/['"'""]([^'"'""].*?)['"'""]/) || 
+                           cleanText.match(/['"]([^'"]+)['"]/);
+    
+    if (quotedTextMatch && quotedTextMatch[1]) {
+      return quotedTextMatch[1].trim();
+    }
+    
+    // Fallback: if no quotes found, return the full question
+    return cleanText;
+  }, []);
   const currentQuestion = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+
+  // Auto-play question audio when a new question appears
+  useEffect(() => {
+    if (currentQuestion && currentQuestion.question) {
+      const targetText = extractTargetLanguageText(currentQuestion.question);
+      if (targetText) {
+        // Add a small delay to ensure the UI has rendered
+        const timer = setTimeout(() => {
+          speak(targetText, learningLanguage, { priority: 'normal' }).catch(() => {});
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentQuestion, learningLanguage, speak, extractTargetLanguageText]);
 
   const getCurrentQuestionAttempts = useCallback(() => {
     const questionId = currentQuestion.id;
@@ -103,7 +138,10 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
           });
         }
 
-        speak("Excellent!", learningLanguage);
+        speak("Excellent!", learningLanguage, { 
+          rate: 1.2, // Fast feedback
+          priority: 'high'
+        }).catch(() => {});
       } else {
         setQuizStats((prev) => ({
           ...prev,
@@ -111,13 +149,17 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
           mistakes: [...prev.mistakes, currentQuestion],
           attempts: updatedAttempts,
         }));
-        speak("Try again", learningLanguage);
+        speak("Try again", learningLanguage, { 
+          rate: 1.2, // Fast feedback
+          priority: 'high'
+        }).catch(() => {});
       }
     },
     [
       currentQuestion,
       learningLanguage,
       quizStats.streak,
+      quizStats.attempts,
       selectedAnswer,
       speak,
       getCurrentQuestionAttempts,
@@ -248,35 +290,51 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
                 </h3>
               </div>
 
-              {/* Listen Button */}
+              {/* Listen Button - Only works on user click, no auto-play */}
               <Button
                 onClick={() => {
-                  const language =
-                    currentQuestion?.questionLanguage === "native"
-                      ? nativeLanguage
-                      : learningLanguage;
-                  speak(currentQuestion?.question, language);
+                  // Fast execution - no async delays
+                  if (!currentQuestion?.question || speaking) return;
+                  
+                  // Extract only the target language text from the question
+                  const targetText = extractTargetLanguageText(currentQuestion.question);
+                  
+                  if (!targetText) return;
+                  
+                  // Determine the correct language for the target text
+                  const language = currentQuestion?.questionLanguage === "native"
+                    ? nativeLanguage
+                    : learningLanguage;
+                  
+                  // Immediate speech - no await to prevent blocking UI
+                  speak(targetText, language, {
+                    rate: 1.0, // Faster rate for responsiveness
+                    volume: 1,
+                    priority: 'high'
+                  }).catch(() => {
+                    // Silent error handling
+                  });
                 }}
                 disabled={speaking}
                 variant="outline"
                 size="lg"
-                className="mt-6 bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all duration-300"
+                className="mt-6 bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/30 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Volume2 className="mr-2 h-5 w-5 text-primary" />
-                Listen Again
+                <Volume2 className={`mr-2 h-5 w-5 text-primary transition-transform duration-200 ${speaking ? 'animate-pulse' : 'group-hover:scale-110'}`} />
+                {speaking ? 'Speaking...' : 'Listen Again'}
               </Button>
             </div>
 
             {/* Options Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {currentQuestion?.options.map((option, index) => (
                   <motion.div
-                    key={option}
+                    key={`${currentQuestionIndex}-${option}`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: index * 0.1, duration: 0.3 }}
+                    transition={{ delay: index * 0.05, duration: 0.2 }}
                   >
                     <QuizOptionCard
                       option={option}
@@ -284,11 +342,19 @@ const QuizQuestions: React.FC<QuizQuestionsProps> = ({
                       isCorrect={selectedAnswer === option ? isCorrect : null}
                       onClick={() => handleAnswer(option)}
                       onSpeak={() => {
+                        // Fast, non-blocking speech for options
                         const language =
                           currentQuestion.answerLanguage === "learning"
                             ? learningLanguage
                             : nativeLanguage;
-                        speak(option, language);
+                        
+                        speak(option, language, {
+                          rate: 1.0, // Fast rate
+                          volume: 1,
+                          priority: 'normal'
+                        }).catch(() => {
+                          // Silent error handling
+                        });
                       }}
                       disabled={selectedAnswer !== null || speaking}
                     />

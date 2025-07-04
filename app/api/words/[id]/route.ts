@@ -4,33 +4,42 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
+    
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const wordIndex = parseInt(params.id);
+    const resolvedParams = await params;
+    const wordId = resolvedParams.id;
 
-    if (isNaN(wordIndex)) {
-      return NextResponse.json(
-        { error: "Invalid word index" },
-        { status: 400 }
-      );
+    // Validate ObjectID format (24 hex characters)
+    if (!/^[0-9a-fA-F]{24}$/.test(wordId)) {
+      return NextResponse.json({ error: "Invalid word ID format" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
-      select: { words: true },
+      select: { id: true },
     });
 
-    if (!user || !user.words[wordIndex]) {
-      return NextResponse.json({ error: "Word not found" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const word = user.words[wordIndex];
+    const word = await prisma.word.findFirst({
+      where: {
+        id: wordId,
+        userId: user.id,
+      },
+    });
+
+    if (!word) {
+      return NextResponse.json({ error: "Word not found" }, { status: 404 });
+    }
 
     return NextResponse.json(word);
   } catch (error) {

@@ -13,6 +13,9 @@ import {
   MessageCircle,
   LogOut,
   BookOpen,
+  Sparkles,
+  ArrowRight,
+  Zap,
 } from "lucide-react";
 import { UserButton, useClerk } from "@clerk/nextjs";
 import { useAuth } from "@clerk/nextjs";
@@ -124,7 +127,7 @@ const Navbar: React.FC = () => {
                     <NavButton variant="ghost">Login</NavButton>
                   </Link>
                   <Link href="/sign-up">
-                    <NavButton variant="primary">Start Learning</NavButton>
+                    <ModernSignUpButton />
                   </Link>
                 </>
               )}
@@ -203,9 +206,7 @@ const Navbar: React.FC = () => {
                     </NavButton>
                   </Link>
                   <Link href="/sign-up">
-                    <NavButton variant="primary" fullWidth>
-                      Start Learning
-                    </NavButton>
+                    <ModernSignUpButton fullWidth />
                   </Link>
                 </>
               )}
@@ -263,5 +264,181 @@ const NavButton: React.FC<{
     {children}
   </motion.button>
 );
+
+const ModernSignUpButton: React.FC<{
+  fullWidth?: boolean;
+}> = ({ fullWidth }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+
+  const handleClick = () => {
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 600);
+  };
+
+  return (
+    <motion.div
+      className={`relative group ${fullWidth ? "w-full" : ""}`}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={handleClick}
+    >
+      {/* Background with gradient and glow */}
+      <div className={`relative overflow-hidden rounded-2xl ${fullWidth ? "w-full" : ""}`}>
+        <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/90 to-secondary opacity-100 group-hover:opacity-90 transition-opacity duration-300" />
+        
+        {/* Animated glow effect */}
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-primary/50 to-secondary/50 blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-500"
+          animate={{
+            scale: isHovered ? [1, 1.1, 1] : 1,
+          }}
+          transition={{
+            duration: 2,
+            repeat: isHovered ? Infinity : 0,
+            ease: "easeInOut",
+          }}
+        />
+        
+        {/* Main button content */}
+        <div className={`relative flex items-center justify-center px-6 py-3 text-white font-semibold text-sm ${fullWidth ? "w-full" : ""}`}>
+          {/* Sparkle animation */}
+          <AnimatePresence>
+            {isHovered && (
+              <>
+                <motion.div
+                  className="absolute left-3 top-2"
+                  initial={{ opacity: 0, scale: 0, rotate: 0 }}
+                  animate={{ 
+                    opacity: [0, 1, 0], 
+                    scale: [0, 1, 0], 
+                    rotate: [0, 180, 360] 
+                  }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                >
+                  <Sparkles className="w-3 h-3 text-white/80" />
+                </motion.div>
+                
+                <motion.div
+                  className="absolute right-4 bottom-2"
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ 
+                    opacity: [0, 1, 0], 
+                    scale: [0, 1.2, 0],
+                    rotate: [0, 90, 180] 
+                  }}
+                  exit={{ opacity: 0, scale: 0 }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.8 }}
+                >
+                  <Zap className="w-2.5 h-2.5 text-yellow-300" />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+          
+          {/* Icon and text container */}
+          <div className="flex items-center space-x-2 relative z-10">
+            <motion.div
+              animate={{
+                rotate: isClicked ? [0, 15, -15, 0] : 0,
+              }}
+              transition={{ duration: 0.6 }}
+            >
+              <Sparkles className="w-4 h-4" />
+            </motion.div>
+            
+            <span className="relative">
+              Start Learning
+              {/* Underline animation */}
+              <motion.div
+                className="absolute bottom-0 left-0 h-0.5 bg-white/60"
+                initial={{ width: 0 }}
+                animate={{ width: isHovered ? "100%" : 0 }}
+                transition={{ duration: 0.3 }}
+              />
+            </span>
+            
+            <motion.div
+              animate={{
+                x: isHovered ? [0, 4, 0] : 0,
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: isHovered ? Infinity : 0,
+                ease: "easeInOut",
+              }}
+            >
+              <ArrowRight className="w-4 h-4" />
+            </motion.div>
+          </div>
+          
+          {/* Click ripple effect */}
+          <AnimatePresence>
+            {isClicked && (
+              <motion.div
+                className="absolute inset-0 bg-white/20 rounded-2xl"
+                initial={{ scale: 0, opacity: 0.8 }}
+                animate={{ scale: 2, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
+          
+          {/* Shimmer effect */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+            animate={{
+              x: isHovered ? ["-200%", "200%"] : "-200%",
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: isHovered ? Infinity : 0,
+              repeatDelay: 2,
+              ease: "easeInOut",
+            }}
+          />
+        </div>
+        
+        {/* Border highlight */}
+        <div className="absolute inset-0 rounded-2xl border border-white/20 group-hover:border-white/40 transition-colors duration-300" />
+      </div>
+      
+      {/* Floating particles effect */}
+      <AnimatePresence>
+        {isHovered && (
+          <>
+            {[...Array(5)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-1 h-1 bg-primary/60 rounded-full"
+                style={{
+                  left: `${20 + i * 15}%`,
+                  top: `${10 + (i % 2) * 80}%`,
+                }}
+                initial={{ opacity: 0, y: 0, scale: 0 }}
+                animate={{
+                  opacity: [0, 1, 0],
+                  y: [-20, -40],
+                  scale: [0, 1, 0],
+                }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.3,
+                  ease: "easeOut",
+                }}
+              />
+            ))}
+          </>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 export default Navbar;

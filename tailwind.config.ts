@@ -44,9 +44,12 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Inter", "sans-serif"],
-        display: ["Poppins", "sans-serif"],
-        mono: ["Fira Code", "monospace"],
+        sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica", "Arial", "sans-serif"],
+        display: ["DM Sans", "Inter", "system-ui", "sans-serif"],
+        mono: ["JetBrains Mono", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+        hero: ["DM Sans", "Inter", "sans-serif"],
+        accent: ["Source Sans 3", "Inter", "sans-serif"],
+        speech: ["Source Sans 3", "Inter", "sans-serif"],
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

@@ -1,10 +1,16 @@
 // File: types/word.ts
 
 export interface Word {
+  id: string;
   original: string;
   translation: string;
   learned: boolean;
   proficiencyLevel: string;
+  learningLanguage: string;
+  nativeLanguage: string;
+  userId: string;
+  createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface GeneratedWord {

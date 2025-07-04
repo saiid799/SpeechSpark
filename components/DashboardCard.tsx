@@ -14,7 +14,16 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 }) => (
   <Card className="bg-card/50 backdrop-blur-sm border border-foreground/10 hover:border-primary/50 transition-all duration-300">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-lg font-medium">{title}</CardTitle>
+      <CardTitle 
+        className="text-xl font-black font-display tracking-tight" 
+        style={{
+          fontFamily: "'DM Sans', 'Inter', sans-serif",
+          fontWeight: 700,
+          letterSpacing: "-0.015em"
+        }}
+      >
+        {title}
+      </CardTitle>
       <Icon className="h-5 w-5 text-primary" />
     </CardHeader>
     <CardContent>{content}</CardContent>

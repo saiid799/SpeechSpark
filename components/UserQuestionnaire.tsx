@@ -65,7 +65,7 @@ const UserQuestionnaire: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clerkId: user?.id,
-          email: user?.primaryEmailAddress?.emailAddress,
+          email: user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "",
           firstName: user?.firstName,
           lastName: user?.lastName,
           ...formData,

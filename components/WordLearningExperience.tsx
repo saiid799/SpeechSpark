@@ -13,7 +13,7 @@ import { toast } from "react-hot-toast";
 import { generateWordForms } from "@/lib/word-utils";
 
 interface WordLearningExperienceProps {
-  wordIndex: number;
+  wordId: string;
   original: string;
   translation: string;
   learningLanguage: string;
@@ -23,7 +23,7 @@ interface WordLearningExperienceProps {
 }
 
 const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
-  wordIndex,
+  wordId,
   original,
   translation,
   learningLanguage,
@@ -45,8 +45,8 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
 
   // Load word forms
   useEffect(() => {
-    fetchWordForms(`/api/words/${wordIndex}/forms`);
-  }, [wordIndex, fetchWordForms]);
+    fetchWordForms(`/api/words/${wordId}/forms`);
+  }, [wordId, fetchWordForms]);
 
   // Generate questions when word forms are loaded
   useEffect(() => {
@@ -55,16 +55,16 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
         wordFormsData,
         learningLanguage,
         nativeLanguage,
-        wordIndex
+        wordId
       );
       setQuestions(generatedQuestions);
     }
-  }, [wordFormsData, learningLanguage, nativeLanguage, wordIndex]);
+  }, [wordFormsData, learningLanguage, nativeLanguage, wordId]);
 
   // Handle completion of the learning experience
   const handleQuizComplete = useCallback(async () => {
     try {
-      const response = await fetch(`/api/words/${wordIndex}/learn`, {
+      const response = await fetch(`/api/words/${wordId}/learn`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +81,7 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
       console.error("Error marking word as learned:", error);
       toast.error("Failed to save progress");
     }
-  }, [wordIndex, onComplete]);
+  }, [wordId, onComplete]);
 
   // Loading state
   if (isLoading) {
@@ -138,7 +138,7 @@ const WordLearningExperience: React.FC<WordLearningExperienceProps> = ({
             questions={questions}
             learningLanguage={learningLanguage}
             nativeLanguage={nativeLanguage}
-            wordIndex={wordIndex}
+            wordId={wordId}
             onComplete={handleQuizComplete}
           />
         );

@@ -3,7 +3,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { ArrowDownIcon, TrendingUp } from "lucide-react";
 
 interface StatsCardProps {
   title: string;
@@ -13,6 +13,7 @@ interface StatsCardProps {
   trend?: {
     value: number;
     isPositive: boolean;
+    label?: string;
   };
 }
 
@@ -23,133 +24,184 @@ const StatsCard: React.FC<StatsCardProps> = ({
   icon: Icon,
   trend,
 }) => {
-  const getGradientColor = () => {
+  const getCardStyles = () => {
     switch (title) {
       case "Words Learned":
-        return "from-emerald-500/20 via-teal-500/20 to-green-500/20 group-hover:from-emerald-500/30 group-hover:via-teal-500/30 group-hover:to-green-500/30";
+        return {
+          gradient: "from-primary/10 via-primary/5 to-transparent",
+          iconBg: "bg-primary/15",
+          iconColor: "text-primary",
+          accentColor: "border-primary/20",
+          glowColor: "shadow-primary/10"
+        };
       case "Current Level":
-        return "from-blue-500/20 via-indigo-500/20 to-violet-500/20 group-hover:from-blue-500/30 group-hover:via-indigo-500/30 group-hover:to-violet-500/30";
+        return {
+          gradient: "from-secondary/10 via-secondary/5 to-transparent",
+          iconBg: "bg-secondary/15",
+          iconColor: "text-secondary",
+          accentColor: "border-secondary/20",
+          glowColor: "shadow-secondary/10"
+        };
       case "Daily Streak":
-        return "from-orange-500/20 via-amber-500/20 to-yellow-500/20 group-hover:from-orange-500/30 group-hover:via-amber-500/30 group-hover:to-yellow-500/30";
+        return {
+          gradient: "from-accent/10 via-accent/5 to-transparent",
+          iconBg: "bg-accent/15",
+          iconColor: "text-accent",
+          accentColor: "border-accent/20",
+          glowColor: "shadow-accent/10"
+        };
       case "Accuracy":
-        return "from-red-500/20 via-pink-500/20 to-rose-500/20 group-hover:from-red-500/30 group-hover:via-pink-500/30 group-hover:to-rose-500/30";
+        return {
+          gradient: "from-primary/10 via-secondary/5 to-accent/5",
+          iconBg: "bg-gradient-to-br from-primary/15 to-secondary/10",
+          iconColor: "text-primary",
+          accentColor: "border-primary/20",
+          glowColor: "shadow-primary/10"
+        };
       default:
-        return "from-primary/20 via-secondary/20 to-accent/20 group-hover:from-primary/30 group-hover:via-secondary/30 group-hover:to-accent/30";
+        return {
+          gradient: "from-primary/10 via-primary/5 to-transparent",
+          iconBg: "bg-primary/15",
+          iconColor: "text-primary",
+          accentColor: "border-primary/20",
+          glowColor: "shadow-primary/10"
+        };
     }
   };
 
-  const getIconColor = () => {
-    switch (title) {
-      case "Words Learned":
-        return "text-emerald-500";
-      case "Current Level":
-        return "text-blue-500";
-      case "Daily Streak":
-        return "text-orange-500";
-      case "Accuracy":
-        return "text-red-500";
-      default:
-        return "text-primary";
-    }
-  };
-
-  const getTitleGradient = () => {
-    switch (title) {
-      case "Words Learned":
-        return "from-emerald-500 to-green-600";
-      case "Current Level":
-        return "from-blue-500 to-violet-600";
-      case "Daily Streak":
-        return "from-orange-500 to-amber-600";
-      case "Accuracy":
-        return "from-red-500 to-rose-600";
-      default:
-        return "from-primary to-accent";
-    }
-  };
+  const cardStyles = getCardStyles();
+  const numericValue = typeof value === "number" ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  const hasProgress = !isNaN(numericValue) && title !== "Current Level";
 
   return (
     <motion.div
-      whileHover={{ y: -8, scale: 1.02 }}
-      transition={{ duration: 0.2 }}
-      className="group"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="group h-full"
     >
-      <Card
-        className={`relative overflow-hidden p-6 backdrop-blur-md border-foreground/10 hover:border-primary/20
-        bg-gradient-to-br ${getGradientColor()} transition-all duration-500 hover:shadow-xl`}
-      >
-        {/* Background Animation */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent"
-            animate={{
-              scale: [1, 1.2, 1],
-              rotate: [0, 45, 0],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              repeatType: "reverse",
-            }}
-          />
+      <Card className={`relative overflow-hidden h-full bg-gradient-to-br ${cardStyles.gradient} 
+        backdrop-blur-xl border border-foreground/5 hover:${cardStyles.accentColor} 
+        transition-all duration-300 hover:${cardStyles.glowColor} hover:shadow-2xl
+        group-hover:border-opacity-100`}>
+        
+        {/* Modern mesh gradient background */}
+        <div className="absolute inset-0 opacity-30 group-hover:opacity-50 transition-opacity duration-500">
+          <div className={`absolute top-0 left-0 w-32 h-32 bg-gradient-to-br ${cardStyles.gradient} rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2`} />
+          <div className={`absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-br ${cardStyles.gradient} rounded-full blur-2xl transform translate-x-1/2 translate-y-1/2`} />
         </div>
 
-        {/* Content */}
-        <div className="relative z-10">
-          <div className="flex justify-between items-start mb-4">
-            <div
-              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getGradientColor()} 
-              flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}
+        {/* Content Container */}
+        <div className="relative z-10 p-6 h-full flex flex-col">
+          
+          {/* Header with Icon and Trend */}
+          <div className="flex items-start justify-between mb-6">
+            <motion.div
+              className={`w-14 h-14 rounded-2xl ${cardStyles.iconBg} border border-foreground/5
+                flex items-center justify-center shadow-lg backdrop-blur-sm
+                group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
+              whileHover={{ scale: 1.15, rotate: 6 }}
             >
-              <Icon className={`w-6 h-6 ${getIconColor()}`} />
-            </div>
+              <Icon className={`w-7 h-7 ${cardStyles.iconColor} group-hover:scale-110 transition-transform duration-300`} />
+            </motion.div>
+            
             {trend && (
               <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className={`flex items-center space-x-1 px-2 py-1 rounded-lg 
-                  ${
-                    trend.isPositive
-                      ? "bg-green-500/10 text-green-500"
-                      : "bg-red-500/10 text-red-500"
-                  }`}
+                initial={{ opacity: 0, scale: 0.8, x: 20 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.3 }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold
+                  ${trend.isPositive 
+                    ? "bg-primary/15 text-primary border border-primary/20" 
+                    : "bg-red-500/15 text-red-500 border border-red-500/20"
+                  } backdrop-blur-sm shadow-sm`}
               >
                 {trend.isPositive ? (
-                  <ArrowUpIcon className="w-4 h-4" />
+                  <TrendingUp className="w-3 h-3" />
                 ) : (
-                  <ArrowDownIcon className="w-4 h-4" />
+                  <ArrowDownIcon className="w-3 h-3" />
                 )}
-                <span className="text-sm font-medium">{trend.value}%</span>
+                <span>{trend.label || `+${trend.value}%`}</span>
               </motion.div>
             )}
           </div>
 
-          <div className="space-y-2">
-            <h3
-              className={`text-sm font-medium bg-gradient-to-r ${getTitleGradient()} 
-              bg-clip-text text-transparent group-hover:opacity-80 transition-opacity duration-300`}
-            >
-              {title}
-            </h3>
-            <div className="flex items-baseline space-x-2">
-              <span className="text-2xl font-bold">{value}</span>
-              <span className="text-sm text-foreground/60">{subtitle}</span>
-            </div>
-          </div>
-
-          {/* Progress Indicator */}
-          {typeof value === "number" && (
-            <div className="mt-4">
-              <div className="h-1 w-full bg-foreground/10 rounded-full overflow-hidden">
+          {/* Main Content */}
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 
+                className="text-sm font-black text-muted-foreground uppercase tracking-wider mb-2 font-display"
+                style={{
+                  fontFamily: "'DM Sans', 'Inter', sans-serif",
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em"
+                }}
+              >
+                {title}
+              </h3>
+              
+              <div className="space-y-1">
                 <motion.div
-                  className={`h-full bg-gradient-to-r ${getTitleGradient()}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, value as number)}%` }}
-                  transition={{ duration: 1, delay: 0.2 }}
-                />
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.4 }}
+                  className="flex items-baseline gap-2"
+                >
+                  <span 
+                    className="text-3xl font-black text-foreground leading-none font-display"
+                    style={{
+                      fontFamily: "'DM Sans', 'Inter', sans-serif",
+                      fontWeight: 800,
+                      letterSpacing: "-0.025em"
+                    }}
+                  >
+                    {value}
+                  </span>
+                  <span className="text-sm text-muted-foreground font-medium">
+                    {subtitle}
+                  </span>
+                </motion.div>
               </div>
             </div>
-          )}
+
+            {/* Modern Progress Bar */}
+            {hasProgress && (
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Progress</span>
+                  <span className={`font-semibold ${cardStyles.iconColor}`}>
+                    {Math.round(numericValue)}%
+                  </span>
+                </div>
+                <div className="relative h-2 bg-foreground/5 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-primary/80 to-primary/60 rounded-full`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, numericValue)}%` }}
+                    transition={{ duration: 1.2, delay: 0.3, ease: "easeOut" }}
+                  />
+                  <motion.div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-white/40 to-transparent rounded-full"
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ 
+                      width: `${Math.min(100, numericValue)}%`,
+                      opacity: [0, 1, 0]
+                    }}
+                    transition={{ 
+                      width: { duration: 1.2, delay: 0.3, ease: "easeOut" },
+                      opacity: { duration: 0.8, delay: 0.5, ease: "easeInOut" }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Hover Effect Overlay */}
+          <motion.div
+            className={`absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-xl opacity-0 
+              group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`}
+            initial={false}
+          />
         </div>
       </Card>
     </motion.div>

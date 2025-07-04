@@ -5,7 +5,7 @@ import { ApiError, handleApiError } from "@/lib/api-error";
 
 export default async function OnboardingPage() {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
 
     if (!userId) {
       throw new ApiError(401, "Unauthorized");

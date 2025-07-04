@@ -17,7 +17,7 @@ const LearnedWordsGrid: React.FC<LearnedWordsGridProps> = ({
       {words.map((word, index) => (
         <WordCard
           key={index}
-          wordIndex={index}
+          wordId={`learned-${index}`}
           original={word}
           translation=""
           learned={true}

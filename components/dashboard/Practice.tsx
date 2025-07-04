@@ -29,8 +29,12 @@ import { Progress } from "@/components/ui/progress";
 import WordCard from "@/components/WordCard";
 import { useApi } from "@/hooks/useApi";
 import { toast } from "react-hot-toast";
+import BatchNavigator from "@/components/BatchNavigator";
+import BatchPreparationCompact from "@/components/BatchPreparationCompact";
+import { validateBatchIntegrity, WORDS_PER_BATCH } from "@/lib/level-config";
 
 interface Word {
+  id: string;
   original: string;
   translation: string;
   learned: boolean;
@@ -40,6 +44,16 @@ interface Stats {
   totalWords: number;
   learnedWords: number;
   progress: number;
+}
+
+interface BatchInfo {
+  batchNumber: number;
+  totalWords: number;
+  learnedWords: number;
+  progress: number;
+  isCompleted: boolean;
+  isAvailable: boolean;
+  isCurrent: boolean;
 }
 
 const PAGE_SIZE = 50; // Match Zod validation limit
@@ -61,6 +75,11 @@ const Practice: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [batches, setBatches] = useState<BatchInfo[]>([]);
+  const [currentBatch, setCurrentBatch] = useState(1);
+  const [showBatchPreparation, setShowBatchPreparation] = useState(false);
+  const [batchReadyForDisplay, setBatchReadyForDisplay] = useState(false);
+  const [hasAttemptedGeneration, setHasAttemptedGeneration] = useState(false);
 
   const {
     data: wordsData,
@@ -72,9 +91,21 @@ const Practice: React.FC = () => {
     totalPages: number;
     progress: string;
     currentBatch: string;
+    batchNumber: number;
+  }>();
+
+  const {
+    data: batchesData,
+    request: fetchBatches,
+  } = useApi<{
+    batches: BatchInfo[];
+    currentBatch: number;
+    proficiencyLevel: string;
+    totalBatchesPerLevel: number;
   }>();
 
   useEffect(() => {
+    // Fetch words for current page/batch
     fetchWords("/api/words", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,20 +115,55 @@ const Practice: React.FC = () => {
         level: selectedLevel !== "all" ? selectedLevel : undefined,
       }),
     });
-  }, [fetchWords, selectedLevel, currentPage]);
+
+    // Fetch batch information
+    fetchBatches("/api/words/batches");
+  }, [fetchWords, fetchBatches, selectedLevel, currentPage]);
 
   useEffect(() => {
     if (wordsData?.words) {
-      const learnedCount = wordsData.words.filter(
-        (word) => word.learned
-      ).length;
-      setStats({
-        totalWords: wordsData.words.length,
-        learnedWords: learnedCount,
-        progress: (learnedCount / wordsData.words.length) * 100,
-      });
+      // Check if batch is complete before displaying
+      const batchValidation = validateBatchIntegrity(wordsData.words.length, wordsData.batchNumber || 1);
+      const isBatchComplete = batchValidation.isValid;
+      
+      if (isBatchComplete) {
+        setBatchReadyForDisplay(true);
+        setShowBatchPreparation(false);
+        
+        const learnedCount = wordsData.words.filter((word) => word.learned).length;
+        setStats({
+          totalWords: wordsData.words.length,
+          learnedWords: learnedCount,
+          progress: (learnedCount / wordsData.words.length) * 100,
+        });
+        
+        // Update current batch from API response
+        if (wordsData.batchNumber) {
+          setCurrentBatch(wordsData.batchNumber);
+        }
+      } else {
+        // Batch is incomplete
+        setBatchReadyForDisplay(false);
+        
+        if (!showBatchPreparation && !isGenerating && wordsData.words.length < 40) {
+          setShowBatchPreparation(true);
+        }
+        
+        // Auto-generate if severely incomplete
+        if (wordsData.words.length < 10 && !hasAttemptedGeneration && !isGenerating) {
+          setHasAttemptedGeneration(true);
+          handleGenerateWords();
+        }
+      }
     }
-  }, [wordsData?.words]);
+  }, [wordsData?.words, wordsData?.batchNumber, showBatchPreparation, isGenerating, hasAttemptedGeneration]);
+
+  useEffect(() => {
+    if (batchesData?.batches) {
+      setBatches(batchesData.batches);
+      setCurrentBatch(batchesData.currentBatch);
+    }
+  }, [batchesData]);
 
   const handleGenerateWords = async () => {
     setIsGenerating(true);
@@ -161,6 +227,26 @@ const Practice: React.FC = () => {
 
     return filtered;
   }, [wordsData?.words, searchQuery, sortBy, filterLearned]);
+
+  const handleBatchChange = async (batchNumber: number) => {
+    if (batchNumber === currentBatch) return;
+    
+    console.log(`Switching to batch ${batchNumber}`);
+    setCurrentPage(batchNumber); // Page number matches batch number
+    setCurrentBatch(batchNumber);
+    
+    // Fetch words for the selected batch
+    await fetchWords("/api/words", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        page: batchNumber,
+        pageSize: PAGE_SIZE,
+        batch: batchNumber,
+        level: selectedLevel !== "all" ? selectedLevel : undefined,
+      }),
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -320,41 +406,70 @@ const Practice: React.FC = () => {
         </div>
       </Card>
 
-      {/* Words Grid/List */}
-      {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <RefreshCw className="w-8 h-8 animate-spin text-primary" />
-        </div>
+      {/* Batch Navigator */}
+      {batches.length > 0 && (
+        <BatchNavigator
+          batches={batches}
+          currentBatch={currentBatch}
+          onBatchChange={handleBatchChange}
+          className="mb-6"
+        />
+      )}
+
+      {/* Words Grid/List - Only show when batch is ready */}
+      {batchReadyForDisplay ? (
+        isLoading ? (
+          <div className="flex justify-center items-center py-12">
+            <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            <motion.div
+              layout
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                  : "space-y-4"
+              }
+            >
+              {filteredAndSortedWords.map((word, index) => (
+                <motion.div
+                  key={word.original}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <WordCard
+                    wordId={word.id}
+                    original={word.original}
+                    translation={word.translation}
+                    learned={word.learned}
+                    language="English"
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        )
       ) : (
-        <AnimatePresence mode="popLayout">
-          <motion.div
-            layout
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-            }
-          >
-            {filteredAndSortedWords.map((word, index) => (
-              <motion.div
-                key={word.original}
-                layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: index * 0.05 }}
-              >
-                <WordCard
-                  wordIndex={index}
-                  original={word.original}
-                  translation={word.translation}
-                  learned={word.learned}
-                  language="English"
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+        // Show preparation message when batch is not ready
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4"
+            >
+              <BookOpen className="w-8 h-8 text-primary" />
+            </motion.div>
+            <h3 className="text-xl font-semibold mb-2">Preparing Your Batch</h3>
+            <p className="text-muted-foreground">
+              Ensuring you have exactly 50 words for optimal learning
+            </p>
+          </div>
+        </div>
       )}
 
       {!isLoading && filteredAndSortedWords.length === 0 && (
@@ -370,6 +485,42 @@ const Practice: React.FC = () => {
           </p>
         </motion.div>
       )}
+
+      {/* Batch Preparation Modal */}
+      <BatchPreparationCompact
+        isVisible={showBatchPreparation}
+        currentWords={wordsData?.words.length || 0}
+        targetWords={WORDS_PER_BATCH}
+        batchNumber={currentBatch}
+        onGenerateWords={async () => {
+          setHasAttemptedGeneration(true);
+          await handleGenerateWords();
+          // Refresh data after generation
+          setTimeout(() => {
+            fetchWords("/api/words", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                page: currentPage,
+                pageSize: PAGE_SIZE,
+                level: selectedLevel !== "all" ? selectedLevel : undefined,
+              }),
+            });
+            setHasAttemptedGeneration(false);
+          }, 2000);
+        }}
+        onCancel={() => {
+          setShowBatchPreparation(false);
+          // Show words anyway if there are some
+          if (wordsData?.words.length && wordsData.words.length > 10) {
+            setBatchReadyForDisplay(true);
+          }
+        }}
+        isGenerating={isGenerating}
+        generationError={null}
+        language="English"
+        level={selectedLevel !== "all" ? selectedLevel : "current level"}
+      />
     </div>
   );
 };

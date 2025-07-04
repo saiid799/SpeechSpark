@@ -4,6 +4,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { getUserStreakData, checkAndResetStreakIfNeeded } from "@/lib/streak-utils";
+import { WORDS_PER_LEVEL, PROFICIENCY_LEVELS, getCurrentBatch, canProgressToLevel, ProficiencyLevel, getCompletedBatches } from "@/lib/level-config";
+import { performanceMonitor, measureApiPerformance } from "@/lib/performance-monitor";
 
 const userSchema = z.object({
   clerkId: z.string(),
@@ -12,152 +15,156 @@ const userSchema = z.object({
   lastName: z.string().optional(),
   nativeLanguage: z.string(),
   learningLanguage: z.string(),
-  proficiencyLevel: z.enum(["A1", "A2"]), // Only allow A1 and A2
+  proficiencyLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
 });
-
-// Same word count for all levels
-const wordsPerLevel = {
-  A1: 1000,
-  A2: 1000,
-  B1: 1000,
-  B2: 1000,
-  C1: 1000,
-};
 
 export async function GET() {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check for throttling
+    if (performanceMonitor.shouldThrottle('/api/user', userId)) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        { status: 429 }
+      );
+    }
+    
+    return await measureApiPerformance('/api/user', async () => {
+
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
       select: {
+        id: true,
         nativeLanguage: true,
         learningLanguage: true,
         proficiencyLevel: true,
         targetWordCount: true,
-        words: true,
+        currentBatch: true,
+        currentPage: true,
+        completedBatches: true,
+        currentStreak: true,
+        longestStreak: true,
+        lastActiveDate: true,
       },
     });
 
+    // If user doesn't exist, redirect to onboarding
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ 
+        error: "User not found", 
+        requiresOnboarding: true 
+      }, { status: 404 });
     }
 
-    // Calculate learned words for each level
-    const learnedWords = user.words.filter((word) => word.learned).length;
+    // Check and reset streak if needed
+    await checkAndResetStreakIfNeeded(user.id);
 
-    // Calculate completed levels (all words in level are learned)
-    const completedLevels = ["A1", "A2"].filter((level) => {
-      const wordsForLevel = user.words.filter(
-        (w) => w.proficiencyLevel === level
-      );
-      const learnedWordsInLevel = wordsForLevel.filter((w) => w.learned).length;
-      return (
-        wordsForLevel.length > 0 &&
-        learnedWordsInLevel ===
-          wordsPerLevel[level as keyof typeof wordsPerLevel]
-      );
+    // Get current streak data
+    const streakData = await getUserStreakData(user.id);
+
+    // Optimize with a single aggregation query instead of multiple counts
+    const wordStats = await prisma.word.groupBy({
+      by: ['proficiencyLevel', 'learned'],
+      where: {
+        userId: user.id,
+        learningLanguage: user.learningLanguage,
+      },
+      _count: true,
     });
 
-    // Generate daily progress data (last 30 days)
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
-    const dailyProgress = [];
-    const currentDate = new Date(thirtyDaysAgo);
-    let streak = 0;
+    // Process the aggregated results
+    const learnedWordsByLevel = new Map<string, number>();
+    let totalLearnedWords = 0;
 
-    while (currentDate <= new Date()) {
-      // Get words learned on this day
-      const dayStart = new Date(currentDate);
-
-      // In a real app, you'd query based on actual learn dates
-      // This is a simplified version for demonstration
-      const wordsLearnedToday = Math.floor(Math.random() * 10); // Simulate 0-10 words learned
-      const accuracy = Math.floor(Math.random() * 20) + 80; // Simulate 80-100% accuracy
-
-      if (wordsLearnedToday > 0) {
-        streak++;
-      } else {
-        streak = 0;
+    wordStats.forEach(stat => {
+      if (stat.learned) {
+        const count = stat._count;
+        learnedWordsByLevel.set(stat.proficiencyLevel, count);
+        totalLearnedWords += count;
       }
+    });
 
-      dailyProgress.push({
-        date: dayStart.toISOString().split("T")[0],
-        wordsLearned: wordsLearnedToday,
-        accuracy,
-        streak,
+    const learnedWords = totalLearnedWords;
+    const learnedWordsInCurrentLevel = learnedWordsByLevel.get(user.proficiencyLevel) || 0;
+
+    // Calculate completed levels efficiently
+    const completedLevels = PROFICIENCY_LEVELS.filter(level => {
+      const learnedInLevel = learnedWordsByLevel.get(level) || 0;
+      return canProgressToLevel(level as ProficiencyLevel, learnedInLevel);
+    });
+
+    // Use the user's stored currentPage instead of calculating based on learned words
+    const currentLearningPage = user.currentPage || 1;
+    const currentLearningBatch = getCurrentBatch(learnedWordsInCurrentLevel);
+    const completedBatchesInCurrentLevel = getCompletedBatches(learnedWordsInCurrentLevel);
+
+    // Simplified progress and achievements for better performance
+    // TODO: Implement proper daily progress tracking in a separate endpoint
+    const averageAccuracy = 85; // Placeholder - calculate from actual data when needed
+    
+    // Generate basic achievements efficiently
+    const achievements = [];
+    if (streakData.currentStreak >= 7) {
+      achievements.push({
+        id: "streak-7",
+        title: "Week Warrior",
+        description: "Maintained a 7-day learning streak",
+        date: new Date().toISOString(),
+        type: "streak",
       });
-
-      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    if (learnedWords >= 100) {
+      achievements.push({
+        id: "words-100",
+        title: "Century Milestone",
+        description: "Learned 100 words",
+        date: new Date().toISOString(),
+        type: "milestone",
+      });
     }
 
-    // Generate achievements based on progress
-    const achievements = [
-      // Streak achievements
-      ...(streak >= 7
-        ? [
-            {
-              id: "streak-7",
-              title: "Week Warrior",
-              description: "Maintained a 7-day learning streak",
-              date: new Date().toISOString(),
-              type: "streak",
-            },
-          ]
-        : []),
-
-      // Word count achievements
-      ...(learnedWords >= 100
-        ? [
-            {
-              id: "words-100",
-              title: "Century Milestone",
-              description: "Learned 100 words",
-              date: new Date().toISOString(),
-              type: "milestone",
-            },
-          ]
-        : []),
-
-      // Level completion achievements
-      ...completedLevels.map((level) => ({
+    // Add level completion achievements
+    completedLevels.forEach((level) => {
+      achievements.push({
         id: `level-${level}`,
         title: `${level} Mastered`,
         description: `Completed all words in level ${level}`,
         date: new Date().toISOString(),
         type: "completion",
-      })),
+      });
+    });
 
-      // High accuracy achievements
-      ...(dailyProgress.some((day) => day.accuracy >= 95)
-        ? [
-            {
-              id: "accuracy-95",
-              title: "Precision Perfect",
-              description: "Achieved 95% accuracy in practice",
-              date: new Date().toISOString(),
-              type: "accuracy",
-            },
-          ]
-        : []),
-    ];
+    // Don't automatically update user's current page - let them control navigation
+    // Only update completed batches if needed
+    if (JSON.stringify(user.completedBatches) !== JSON.stringify(completedBatchesInCurrentLevel)) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          completedBatches: completedBatchesInCurrentLevel,
+        },
+      });
+    }
 
-    // Return complete user progress data
+    // Return optimized user progress data
     return NextResponse.json({
       ...user,
       learnedWords,
       completedLevels,
-      dailyProgress,
+      currentLearningPage,
+      currentLearningBatch,
+      completedBatchesInCurrentLevel,
       achievements,
-      currentStreak: streak,
-      averageAccuracy: Math.round(
-        dailyProgress.reduce((acc, day) => acc + day.accuracy, 0) /
-          dailyProgress.length
-      ),
+      currentStreak: streakData.currentStreak,
+      longestStreak: streakData.longestStreak,
+      todayCompleted: streakData.todayCompleted,
+      averageAccuracy,
     });
+    }, userId);
   } catch (error) {
     console.error("Error in user API route:", error);
     return NextResponse.json(
@@ -169,7 +176,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -186,10 +193,7 @@ export async function POST(request: Request) {
     const validatedData = userSchema.parse(userData);
 
     // Set target word count based on level
-    const targetWordCount =
-      wordsPerLevel[
-        validatedData.proficiencyLevel as keyof typeof wordsPerLevel
-      ];
+    const targetWordCount = WORDS_PER_LEVEL;
 
     // Create or update user
     const user = await prisma.user.upsert({
@@ -220,5 +224,35 @@ export async function POST(request: Request) {
       { error: "An error occurred while processing your request" },
       { status: 500 }
     );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { currentPage } = body;
+
+    if (!currentPage || typeof currentPage !== 'number') {
+      return NextResponse.json({ error: "Invalid currentPage value" }, { status: 400 });
+    }
+
+    // Update user's current page
+    const updatedUser = await prisma.user.update({
+      where: { clerkId: userId },
+      data: { currentPage },
+    });
+
+    return NextResponse.json({ 
+      message: "Current page updated successfully",
+      currentPage: updatedUser.currentPage 
+    });
+  } catch (error) {
+    console.error("Error updating user page:", error);
+    return NextResponse.json({ error: "Failed to update current page" }, { status: 500 });
   }
 }

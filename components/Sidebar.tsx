@@ -12,7 +12,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useClerk } from "@clerk/nextjs";
 
 const sidebarLinks = [
   { icon: Home, text: "Dashboard", href: "/dashboard" },
@@ -25,6 +25,7 @@ const sidebarLinks = [
 
 const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const { signOut } = useClerk();
 
   return (
     <div className="w-64 bg-background/50 backdrop-blur-md border-r border-foreground/10 h-screen fixed left-0 top-0 overflow-y-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
@@ -53,13 +54,17 @@ const Sidebar: React.FC = () => {
         <div className="mt-auto p-6 border-t border-foreground/10">
           <div className="flex items-center justify-between">
             <UserButton afterSignOutUrl="/" />
-            <Link
-              href="/api/auth/signout"
+            <motion.button
+              onClick={() => signOut(() => {
+                window.location.href = "/";
+              })}
               className="flex items-center space-x-2 text-foreground/60 hover:text-primary transition-colors duration-200"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               <LogOut className="h-5 w-5" />
               <span>Sign out</span>
-            </Link>
+            </motion.button>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Word } from "@/types/word";
+import { WORDS_PER_BATCH, BATCHES_PER_LEVEL } from "@/lib/level-config";
 
 const prisma = new PrismaClient();
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!);
@@ -36,49 +37,78 @@ interface GeneratedWord {
 
 async function generateWords(
   language: string,
-  proficiencyLevel: string
+  proficiencyLevel: string,
+  batchNumber: number,
+  wordsCount: number = WORDS_PER_BATCH
 ): Promise<GeneratedWord[]> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
-  const prompt = `Generate exactly 1000 ${language} words appropriate for ${proficiencyLevel} level learners with their English translations. 
+  const prompt = `You are an expert language curriculum designer with deep knowledge of ${language} pedagogy and the Common European Framework of Reference (CEFR) standards. Generate exactly ${wordsCount} high-quality ${language} words that are perfectly calibrated for ${proficiencyLevel} level learners.
 
-  For level requirements:
-  ${
+This is batch ${batchNumber} of ${BATCHES_PER_LEVEL} for ${proficiencyLevel} level. Ensure words are appropriate for this progression stage.
+
+Target Language: ${language}
+Proficiency Level: ${proficiencyLevel}
+Translation Language: English
+
+Level-specific requirements:
+${
     proficiencyLevel === "A1"
       ? `
-  A1 (Beginner) words should be:
-  - Basic everyday vocabulary
-  - Common nouns, verbs, and adjectives
-  - Simple time expressions
-  - Basic numbers and colors
-  - Common greetings and phrases
-  `
+A1 (Beginner) Vocabulary Focus:
+- Essential survival vocabulary for basic communication
+- High-frequency nouns (family, home, food, clothing, time)
+- Core verbs in present tense (be, have, go, come, want, need)
+- Basic adjectives for description (big, small, good, bad, hot, cold)
+- Numbers 1-100, days, months, colors
+- Common greetings, polite expressions, and basic phrases
+- Simple prepositions and connecting words
+- Personal pronouns and basic question words
+`
       : `
-  A2 (Elementary) words should be:
-  - Expanded everyday vocabulary
-  - More varied verbs and tenses
-  - Common expressions and idioms
-  - Words for opinions and feelings
-  - Basic professional vocabulary
-  `
+A2 (Elementary) Vocabulary Expansion:
+- Extended everyday vocabulary for common situations
+- Verbs in multiple tenses (past, future, modal verbs)
+- Descriptive adjectives and comparative forms
+- Expressions for opinions, preferences, and feelings
+- Basic work and study vocabulary
+- Travel and transportation terms
+- Health and body vocabulary
+- Simple phrasal verbs and common idioms
+- Connecting words for expressing relationships between ideas
+`
   }
 
-  Please ensure:
-  - Exactly 1000 unique words
-  - No duplicates
-  - Appropriate difficulty for the level
-  - Mix of nouns, verbs, adjectives, and common phrases
-  - Focus on practical, commonly used words
-  - Words are in their basic/dictionary form
+Quality assurance criteria:
+- Prioritize high-frequency words that appear in everyday communication
+- Include words that enable learners to express basic needs and ideas
+- Balance across word categories (40% nouns, 30% verbs, 20% adjectives, 10% other)
+- Ensure words are in their standard dictionary form
+- Focus on words that build toward the next proficiency level
+- Include culturally relevant vocabulary for ${language}-speaking regions
+- Exclude archaic, highly technical, or overly specialized terms
 
-  Respond only with a JSON array in this format:
-  [
-    {
-      "original": "word in ${language}",
-      "translation": "English translation"
-    },
-    ...
-  ]`;
+Cultural and linguistic considerations:
+- Include words that reflect contemporary usage in ${language}
+- Consider regional variations and choose the most widely understood forms
+- Include words that help learners navigate cultural contexts
+- Ensure appropriate register and formality levels
+
+Output requirements:
+- Generate exactly ${wordsCount} unique, non-duplicate words
+- Provide accurate, contextually appropriate English translations
+- Use standard orthography and spelling conventions
+- Return ONLY a valid JSON array with no additional text
+
+Format:
+[
+  {
+    "original": "word_in_${language}",
+    "translation": "precise_english_translation"
+  }
+]
+
+Generate exactly ${wordsCount} pedagogically sound vocabulary items for ${proficiencyLevel} ${language} learners.`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -93,13 +123,13 @@ async function generateWords(
     const words = JSON.parse(jsonMatch[0]);
 
     // Validate word count
-    if (words.length !== 1000) {
-      throw new Error(`Generated ${words.length} words instead of 1000`);
+    if (words.length !== wordsCount) {
+      throw new Error(`Generated ${words.length} words instead of ${wordsCount}`);
     }
 
     // Validate word uniqueness
     const uniqueWords = new Set(words.map((w: GeneratedWord) => w.original));
-    if (uniqueWords.size !== 1000) {
+    if (uniqueWords.size !== wordsCount) {
       throw new Error("Duplicate words found in generated content");
     }
 
@@ -144,79 +174,99 @@ async function saveWords(
   words: GeneratedWord[],
   language: string,
   proficiencyLevel: string,
+  batchNumber: number,
   userId: string
 ) {
+  // Check if user exists
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { words: true },
+    select: { 
+      id: true,
+      learningLanguage: true,
+      nativeLanguage: true 
+    },
   });
 
   if (!user) {
     throw new Error(`User ${userId} not found`);
   }
 
-  const existingWords = user.words || [];
+  // Get existing words for this user and level to avoid duplicates
+  const existingWords = await prisma.word.findMany({
+    where: {
+      userId: userId,
+      proficiencyLevel: proficiencyLevel,
+      learningLanguage: language,
+    },
+    select: { original: true },
+  });
+
+  const existingWordSet = new Set(existingWords.map(w => w.original));
 
   // Filter out duplicates and prepare new words
   const newWords = words
-    .filter(
-      (word) =>
-        !existingWords.some(
-          (existingWord: Word) =>
-            existingWord.original === word.original &&
-            existingWord.proficiencyLevel === proficiencyLevel
-        )
-    )
+    .filter(word => !existingWordSet.has(word.original))
     .map((word) => ({
       original: word.original,
       translation: word.translation,
       learned: false,
       proficiencyLevel: proficiencyLevel,
+      learningLanguage: language,
+      nativeLanguage: "English", // Default to English for now
+      batchNumber: batchNumber,
+      userId: userId,
     }));
 
-  // Update user with new words
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      words: {
-        push: newWords,
-      },
-    },
+  if (newWords.length === 0) {
+    console.log(`No new words to add for ${language} - ${proficiencyLevel} batch ${batchNumber}`);
+    return;
+  }
+
+  // Save words to database
+  const createdWords = await prisma.word.createMany({
+    data: newWords,
   });
 
   console.log(
-    `Added ${newWords.length} new words for ${language} - ${proficiencyLevel}`
+    `Added ${createdWords.count} new words for ${language} - ${proficiencyLevel} batch ${batchNumber}`
   );
 }
 
 async function main() {
-  console.log("Starting word generation process...");
+  console.log("Starting batch-based word generation process...");
   const userId = await getOrCreateUser();
 
   for (const language of languages) {
     console.log(`Processing language: ${language}`);
 
     for (const level of proficiencyLevels) {
-      console.log(`Generating ${level} words for ${language}...`);
+      console.log(`Generating ${level} words for ${language} in ${BATCHES_PER_LEVEL} batches...`);
 
-      try {
-        const words = await generateWords(language, level);
-        console.log(`Successfully generated ${words.length} words`);
+      // Generate words in batches
+      for (let batchNumber = 1; batchNumber <= BATCHES_PER_LEVEL; batchNumber++) {
+        try {
+          console.log(`Generating batch ${batchNumber}/${BATCHES_PER_LEVEL} for ${language} - ${level}...`);
+          
+          const words = await generateWords(language, level, batchNumber);
+          console.log(`Successfully generated ${words.length} words for batch ${batchNumber}`);
 
-        await saveWords(words, language, level, userId);
-        console.log(`Saved ${level} words for ${language}`);
+          await saveWords(words, language, level, batchNumber, userId);
+          console.log(`Saved batch ${batchNumber} for ${language} - ${level}`);
 
-        // Add a small delay between generations to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`Failed to process ${language} - ${level}:`, error);
-        // Continue with next iteration despite errors
-        continue;
+          // Add a small delay between batch generations to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        } catch (error) {
+          console.error(`Failed to process ${language} - ${level} batch ${batchNumber}:`, error);
+          // Continue with next batch despite errors
+          continue;
+        }
       }
+      
+      console.log(`Completed all batches for ${language} - ${level}`);
     }
   }
 
-  console.log("Word generation process completed");
+  console.log("Batch-based word generation process completed");
 }
 
 // Error handling for the main process

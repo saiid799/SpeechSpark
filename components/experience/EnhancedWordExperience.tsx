@@ -21,7 +21,7 @@ interface EnhancedWordExperienceProps
 }
 
 const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
-  wordIndex,
+  wordId,
   original,
   translation,
   learningLanguage,
@@ -45,7 +45,7 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
   } = useApi<WordForm[]>();
 
   const updateWordStatus = useCallback(async () => {
-    const response = await fetch(`/api/words/${wordIndex}/learn`, {
+    const response = await fetch(`/api/words/${wordId}/learn`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
     });
@@ -53,7 +53,7 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
     if (!response.ok) {
       throw new Error("Failed to update word status");
     }
-  }, [wordIndex]);
+  }, [wordId]);
 
   const handleQuizComplete = useCallback(
     async (quizStats: {
@@ -86,8 +86,8 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
   );
 
   useEffect(() => {
-    fetchWordForms(`/api/words/${wordIndex}/forms`);
-  }, [wordIndex, fetchWordForms]);
+    fetchWordForms(`/api/words/${wordId}/forms`);
+  }, [wordId, fetchWordForms]);
 
   useEffect(() => {
     if (wordFormsData) {
@@ -95,11 +95,11 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
         wordFormsData,
         learningLanguage,
         nativeLanguage,
-        wordIndex
+        wordId
       );
       setQuestions(generatedQuestions);
     }
-  }, [wordFormsData, learningLanguage, nativeLanguage, wordIndex]);
+  }, [wordFormsData, learningLanguage, nativeLanguage, wordId]);
 
   const StatsDisplay = () => (
     <Card className="p-6 mb-8 bg-card/50 backdrop-blur-sm border border-foreground/10 rounded-2xl">
@@ -174,7 +174,7 @@ const EnhancedWordExperience: React.FC<EnhancedWordExperienceProps> = ({
               questions={questions}
               learningLanguage={learningLanguage}
               nativeLanguage={nativeLanguage}
-              wordIndex={wordIndex}
+              wordId={wordId}
               onComplete={handleQuizComplete}
               showWordIntro={true}
               word={{ original, translation }}

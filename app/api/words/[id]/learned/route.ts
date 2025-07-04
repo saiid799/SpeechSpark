@@ -1,31 +1,27 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { updateUserStreak } from "@/lib/streak-utils";
+import { invalidateWordCache } from "@/lib/word-cache";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const wordIndex = parseInt(params.id);
-    if (isNaN(wordIndex)) {
-      return NextResponse.json(
-        { error: "Invalid word index" },
-        { status: 400 }
-      );
-    }
+    const resolvedParams = await params;
+    const wordId = resolvedParams.id;
 
-    // Get the user and their words
+    // Get the user 
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
       select: {
         id: true,
-        words: true,
       },
     });
 
@@ -33,43 +29,43 @@ export async function POST(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Validate word index
-    if (wordIndex < 0 || wordIndex >= user.words.length) {
-      return NextResponse.json(
-        { error: "Word index out of range" },
-        { status: 400 }
-      );
-    }
-
-    // Create a new array with the updated word
-    const updatedWords = user.words.map((word, index) => {
-      if (index === wordIndex) {
-        return {
-          ...word,
-          learned: true,
-        };
-      }
-      return word;
-    });
-
-    // Update the user's words in the database
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        words: updatedWords,
+    // Find and update the word
+    const word = await prisma.word.findFirst({
+      where: {
+        id: wordId,
+        userId: user.id,
       },
     });
 
+    if (!word) {
+      return NextResponse.json({ error: "Word not found" }, { status: 404 });
+    }
+
+    // Update the word's learned status
+    const updatedWord = await prisma.word.update({
+      where: { id: wordId },
+      data: { learned: true },
+    });
+
+    // Update user streak for completing learning activity
+    const streakData = await updateUserStreak(user.id);
+
+    // Invalidate specific batch cache and user caches since learned status changed
+    await invalidateWordCache.batch(user.id, updatedWord.proficiencyLevel, updatedWord.batchNumber);
+    await invalidateWordCache.user(user.id);
+
     // Log the update for debugging
     console.log(
-      `Word at index ${wordIndex} marked as learned for user ${user.id}`
+      `Word ${wordId} marked as learned for user ${user.id}`
     );
-    console.log("Updated word:", updatedWords[wordIndex]);
+    console.log("Updated word:", updatedWord);
+    console.log("Streak updated:", streakData);
 
     return NextResponse.json({
       success: true,
       message: "Word marked as learned successfully",
-      word: updatedWords[wordIndex],
+      word: updatedWord,
+      streak: streakData,
     });
   } catch (error) {
     console.error("Error marking word as learned:", error);

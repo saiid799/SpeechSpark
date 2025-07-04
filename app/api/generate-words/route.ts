@@ -27,7 +27,7 @@ const TARGET_WORD_COUNT = 50;
 
 export async function POST() {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -39,7 +39,6 @@ export async function POST() {
         learningLanguage: true,
         nativeLanguage: true,
         proficiencyLevel: true,
-        words: true,
       },
     });
 
@@ -47,9 +46,20 @@ export async function POST() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const existingWords = user.words.filter(
-      (word: Word) => word.proficiencyLevel === user.proficiencyLevel
-    );
+    // Get existing words for the current proficiency level
+    const existingWords = await prisma.word.findMany({
+      where: {
+        userId: user.id,
+        proficiencyLevel: user.proficiencyLevel,
+        learningLanguage: user.learningLanguage,
+      },
+      select: {
+        original: true,
+        translation: true,
+        learned: true,
+        proficiencyLevel: true,
+      },
+    });
 
     let newWords: Word[] = [];
     let retries = 0;
@@ -92,19 +102,45 @@ export async function POST() {
       );
     }
 
-    // Update user's words
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        words: {
-          push: newWords,
-        },
-      },
-    });
+    // Create words in the database
+    const wordCreateData = newWords.map(word => ({
+      original: word.original,
+      translation: word.translation,
+      learned: word.learned,
+      proficiencyLevel: word.proficiencyLevel,
+      learningLanguage: user.learningLanguage,
+      nativeLanguage: user.nativeLanguage,
+      userId: user.id,
+    }));
+
+    // Create words individually to handle duplicates gracefully
+    let successfullyCreated = 0;
+    for (const wordData of wordCreateData) {
+      try {
+        await prisma.word.create({
+          data: wordData,
+        });
+        successfullyCreated++;
+      } catch (error) {
+        // Skip duplicates silently (unique constraint violation)
+        if (error instanceof Error && (
+          error.message.includes('duplicate') ||
+          error.message.includes('unique') ||
+          error.message.includes('E11000')
+        )) {
+          console.log(`Skipping duplicate word: ${wordData.original}`);
+          continue;
+        }
+        // Log other errors but continue
+        console.error(`Error creating word ${wordData.original}:`, error);
+      }
+    }
 
     return NextResponse.json({
       message: "Words generated successfully",
-      generatedCount: newWords.length,
+      generatedCount: successfullyCreated,
+      totalAttempted: newWords.length,
+      duplicatesSkipped: newWords.length - successfullyCreated,
     });
   } catch (error) {
     console.error("Error generating words:", error);
@@ -122,20 +158,74 @@ async function generateWords(
   count: number,
   existingWords: Word[]
 ): Promise<GeneratedWord[]> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
   const existingWordsString = existingWords.map((w) => w.original).join(", ");
-  const prompt = `Generate ${count} unique ${learningLanguage} words or phrases at ${proficiencyLevel} level with their translations in ${nativeLanguage}. 
-  Include a mix of nouns, verbs, adjectives, adverbs, and common expressions.
-  IMPORTANT: Do NOT include any of these existing words: ${existingWordsString}
-  Focus on modern, practical, and commonly used words or phrases.
-  Respond only with a JSON array in this format: 
-  [
-    {
-      "original": "word1",
-      "translation": "translation1"
-    },
-    ...
-  ]`;
+  
+  const prompt = `You are an expert multilingual curriculum designer with deep knowledge of global language learning methodologies. Generate ${count} carefully curated ${learningLanguage} vocabulary items that represent modern, practical usage for ${proficiencyLevel} level learners.
+
+🌍 GLOBAL LANGUAGE FRAMEWORK:
+Learning Language: ${learningLanguage}
+Native Language: ${nativeLanguage}
+Target Proficiency: ${proficiencyLevel}
+Vocabulary Count: ${count}
+
+🎯 MODERN VOCABULARY SELECTION:
+- Contemporary relevance: Focus on words used in today's digital, interconnected world
+- Cross-cultural applicability: Choose vocabulary that works in diverse cultural contexts
+- Practical utility: Prioritize high-frequency words that enable real communication
+- Progressive scaffolding: Ensure vocabulary builds toward next proficiency level
+
+📱 21st CENTURY CONTEXTS:
+Include vocabulary from modern domains:
+- Digital communication (social media, messaging, online platforms)
+- Global connectivity (travel, international relations, remote work)
+- Sustainable living (environment, health, wellness)
+- Technology integration (apps, devices, digital services)
+- Cultural diversity (inclusive language, global perspectives)
+
+🔤 SCRIPT & WRITING SYSTEM AWARENESS:
+- Use authentic ${learningLanguage} orthography and script systems
+- For non-Latin scripts: Ensure proper character representation
+- Regional considerations: Choose widely understood variants
+- Modern spellings: Use current, accepted spelling conventions
+
+🎨 WORD CATEGORY DISTRIBUTION:
+- Nouns (35%): Objects, concepts, people, places relevant to modern life
+- Verbs (30%): Actions for contemporary situations and digital interactions
+- Adjectives (20%): Descriptive words for current experiences and emotions
+- Functional words (15%): Prepositions, conjunctions, expressions for fluent communication
+
+⚡ LANGUAGE-SPECIFIC CONSIDERATIONS:
+- Tonal languages: Include tone marks where standard
+- Gendered languages: Choose base forms appropriate for the language
+- Formal/informal registers: Select appropriate formality level for proficiency
+- Regional variations: Use internationally recognized forms
+
+🚫 EXCLUSION REQUIREMENTS:
+Absolutely avoid these existing words: ${existingWordsString}
+
+🌐 CULTURAL AUTHENTICITY:
+- Reflect modern ${learningLanguage}-speaking societies
+- Include culturally relevant concepts and expressions
+- Avoid outdated or archaic terms unless culturally significant
+- Consider global vs. regional usage patterns
+
+🔍 QUALITY ASSURANCE:
+- Frequency validation: Choose high-utility vocabulary
+- Learning progression: Ensure appropriate difficulty for ${proficiencyLevel}
+- Pedagogical value: Select words that unlock further learning
+- Real-world application: Focus on vocabulary learners will actually encounter
+
+📊 OUTPUT SPECIFICATION:
+Return ONLY a valid JSON array with no additional text:
+[
+  {
+    "original": "authentic_${learningLanguage}_word",
+    "translation": "precise_${nativeLanguage}_translation"
+  }
+]
+
+Generate exactly ${count} modern, globally-relevant vocabulary items that empower learners to communicate effectively in today's interconnected world.`;
 
   try {
     const result = await model.generateContent(prompt);

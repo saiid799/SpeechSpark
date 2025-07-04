@@ -258,19 +258,24 @@ const ReviewMode: React.FC<ReviewModeProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Button
-                onClick={() => handleAnswer(option)}
-                disabled={selectedAnswer !== null || speaking}
+              <div
                 className={`
-                  w-full h-20 text-lg rounded-xl transition-all duration-300 relative group
+                  w-full h-20 text-lg rounded-xl transition-all duration-300 relative group cursor-pointer
+                  flex items-center justify-center border-2
                   ${
                     selectedAnswer === option
                       ? isCorrect
-                        ? "bg-green-500 text-white"
-                        : "bg-red-500 text-white"
-                      : "bg-card hover:bg-primary/10"
+                        ? "bg-green-500 text-white border-green-500"
+                        : "bg-red-500 text-white border-red-500"
+                      : "bg-card hover:bg-primary/10 border-foreground/10 hover:border-primary/20"
                   }
+                  ${selectedAnswer !== null || speaking ? "pointer-events-none opacity-50" : ""}
                 `}
+                onClick={() => {
+                  if (selectedAnswer === null && !speaking) {
+                    handleAnswer(option);
+                  }
+                }}
               >
                 <span>{option}</span>
                 <Button
@@ -285,11 +290,11 @@ const ReviewMode: React.FC<ReviewModeProps> = ({
                     speak(option, language);
                   }}
                   disabled={speaking}
-                  className="absolute right-2 opacity-0 group-hover:opacity-100"
+                  className="absolute right-2 opacity-0 group-hover:opacity-100 pointer-events-auto"
                 >
                   <Volume2 className="h-4 w-4" />
                 </Button>
-              </Button>
+              </div>
             </motion.div>
           ))}
         </div>

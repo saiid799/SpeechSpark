@@ -17,15 +17,50 @@ model User {
   learningLanguage String
   proficiencyLevel String
   targetWordCount  Int      @default(1000)
-  words            Word[]
+  currentBatch     Int      @default(1)     // Current batch number user is working on
+  currentPage      Int      @default(1)     // Current page within the batch for UI navigation
+  completedBatches Json[]   @default([])    // Array of completed batch numbers per level
+  words            Word[]   @relation("UserWords")
   notifications    Json[]   @default([])
+  dailyActivities  DailyActivity[]
+  currentStreak    Int      @default(0)
+  longestStreak    Int      @default(0)
+  lastActiveDate   DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
 
-type Word {
+model DailyActivity {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String   @db.ObjectId
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  wordsLearned     Int      @default(0)
+  practiceTime     Int      @default(0) // in minutes
+  quizzesTaken     Int      @default(0)
+  createdAt        DateTime @default(now())
+  
+  @@unique([userId, date])
+}
+
+model Word {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
   original         String
   translation      String
   learned          Boolean  @default(false)
   proficiencyLevel String
+  learningLanguage String
+  nativeLanguage   String
+  batchNumber      Int      @default(1)     // Batch number this word belongs to
+  userId           String   @db.ObjectId
+  user             User     @relation("UserWords", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Indexes for performance optimization
+  @@index([userId, proficiencyLevel, learned])
+  @@index([userId, proficiencyLevel, batchNumber])
+  @@index([userId, batchNumber])
+  @@index([original, learningLanguage, proficiencyLevel])
+  @@unique([userId, original, learningLanguage, proficiencyLevel], name: "unique_user_word")
 }

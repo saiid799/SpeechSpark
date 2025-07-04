@@ -4,7 +4,7 @@ export function generateWordForms(
   forms: WordForm[],
   learningLanguage: string,
   nativeLanguage: string,
-  wordIndex: number
+  wordId: string
 ): Question[] {
   const questions: Question[] = [];
 
@@ -13,7 +13,7 @@ export function generateWordForms(
     // Recognition question (native to learning language)
     questions.push({
       id: `recognition-${index}`,
-      wordIndex,
+      wordId,
       question: `How do you say "${form.translation}" in ${learningLanguage}?`,
       options: generateOptions(forms, form.form, true),
       correctAnswer: form.form,
@@ -24,7 +24,7 @@ export function generateWordForms(
     // Understanding question (learning to native language)
     questions.push({
       id: `understanding-${index}`,
-      wordIndex,
+      wordId,
       question: `What does "${form.form}" mean in ${nativeLanguage}?`,
       options: generateOptions(forms, form.translation, false),
       correctAnswer: form.translation,
