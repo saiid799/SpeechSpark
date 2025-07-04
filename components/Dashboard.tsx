@@ -486,7 +486,7 @@ const Dashboard = () => {
       });
       
       // Check if batch is complete (exactly 50 words) before displaying
-      const batchValidation = validateBatchIntegrity(wordsData.words.length, wordsData.batchNumber || 1);
+      const batchValidation = validateBatchIntegrity(wordsData.words.length);
       const isBatchComplete = batchValidation.isValid;
       
       console.log(`Batch validation: ${batchValidation.actualWords}/${batchValidation.expectedWords} words, complete: ${isBatchComplete}`);

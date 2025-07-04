@@ -146,7 +146,7 @@ export function getCompletedBatches(learnedWordsInLevel: number): number[] {
 }
 
 // Validation functions for batch integrity
-export function validateBatchIntegrity(batchWordCount: number, _batchNumber: number): {
+export function validateBatchIntegrity(batchWordCount: number): {
   isValid: boolean;
   expectedWords: number;
   actualWords: number;

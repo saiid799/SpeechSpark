@@ -123,7 +123,7 @@ const Practice: React.FC = () => {
   useEffect(() => {
     if (wordsData?.words) {
       // Check if batch is complete before displaying
-      const batchValidation = validateBatchIntegrity(wordsData.words.length, wordsData.batchNumber || 1);
+      const batchValidation = validateBatchIntegrity(wordsData.words.length);
       const isBatchComplete = batchValidation.isValid;
       
       if (isBatchComplete) {

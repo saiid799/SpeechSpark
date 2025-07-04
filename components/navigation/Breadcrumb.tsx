@@ -4,7 +4,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Home, BookOpen, Target } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 

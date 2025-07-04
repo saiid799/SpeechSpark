@@ -118,7 +118,12 @@ export class RecommendationEngine {
    */
   private static generateReasons(
     word: Word,
-    userProgress: any,
+    userProgress: {
+      learnedWords: string[];
+      recentMistakes: string[];
+      learningStreak: number;
+      proficiencyLevel: string;
+    },
     learningPattern?: LearningPattern
   ): string[] {
     const reasons: string[] = [];
@@ -165,9 +170,11 @@ export class RecommendationEngine {
     return Math.abs(wordIndex - userIndex) === 1;
   }
 
-  private static areSimilarWords(_wordId1: string, _wordId2: string): boolean {
+  private static areSimilarWords(wordId1: string, wordId2: string): boolean {
     // Simple similarity check - in practice, this could use more sophisticated NLP
-    return Math.random() > 0.8; // Placeholder logic
+    // For now, we'll use a basic string comparison
+    return wordId1.toLowerCase().includes(wordId2.toLowerCase()) || 
+           wordId2.toLowerCase().includes(wordId1.toLowerCase());
   }
 
   private static getFrequencyScore(word: Word): number {
@@ -177,10 +184,13 @@ export class RecommendationEngine {
     return commonWords.includes(word.original.toLowerCase()) ? 10 : 5;
   }
 
-  private static getSpacedRepetitionScore(_word: Word): number {
+  private static getSpacedRepetitionScore(word: Word): number {
     // Score based on when word was last seen
     // Words not seen recently get higher scores
-    return Math.random() * 15; // Placeholder - would use actual last seen data
+    // In a real implementation, this would use actual last seen data
+    // For now, we'll use the word's difficulty level as a proxy
+    const difficultyLevels = { 'A1': 15, 'A2': 12, 'B1': 10, 'B2': 8, 'C1': 6, 'C2': 4 };
+    return difficultyLevels[word.proficiencyLevel as keyof typeof difficultyLevels] || 5;
   }
 
   private static getLearningPatternScore(_word: Word, pattern: LearningPattern): number {

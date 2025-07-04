@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { WORDS_PER_BATCH, validateBatchIntegrity } from "@/lib/level-config";
+import { validateBatchIntegrity } from "@/lib/level-config";
 
 const requestSchema = z.object({
   batchNumber: z.number().int().positive(),
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const batchValidation = validateBatchIntegrity(batchWords.length, batchNumber);
+    const batchValidation = validateBatchIntegrity(batchWords.length);
     const learnedCount = batchWords.filter(word => word.learned).length;
 
     console.log(`Batch ${batchNumber} validation: ${batchValidation.actualWords}/${batchValidation.expectedWords} words, ${learnedCount} learned`);
@@ -165,7 +165,7 @@ export async function GET(request: Request) {
       const batchStat = batchStats.find(stat => stat.batchNumber === batchNum);
       const wordCount = batchStat?._count || 0;
       
-      const validation = validateBatchIntegrity(wordCount, batchNum);
+      const validation = validateBatchIntegrity(wordCount);
       
       batchValidations.push({
         batchNumber: batchNum,

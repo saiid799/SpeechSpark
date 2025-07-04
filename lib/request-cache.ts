@@ -11,8 +11,8 @@ interface CacheEntry<T> {
 }
 
 class RequestCache {
-  private pendingRequests = new Map<string, PendingRequest<any>>();
-  private cache = new Map<string, CacheEntry<any>>();
+  private pendingRequests = new Map<string, PendingRequest<unknown>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
   private maxCacheSize = 500;
 
   /**
@@ -31,14 +31,14 @@ class RequestCache {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
       console.log(`🎯 Cache HIT for: ${key}`);
-      return cached.data;
+      return cached.data as T;
     }
 
     // Check if request is already in progress
     const pending = this.pendingRequests.get(key);
     if (pending) {
       console.log(`⏳ Request DEDUPED for: ${key}`);
-      return pending.promise;
+      return pending.promise as Promise<T>;
     }
 
     // Make new request
@@ -136,8 +136,8 @@ class RequestCache {
 export const requestCache = new RequestCache();
 
 // Helper function to generate cache keys
-export const createCacheKey = (endpoint: string, params?: Record<string, any>): string => {
-  const paramString = params ? `?${new URLSearchParams(params).toString()}` : '';
+export const createCacheKey = (endpoint: string, params?: Record<string, unknown>): string => {
+  const paramString = params ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';
   return `${endpoint}${paramString}`;
 };
 
